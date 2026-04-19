@@ -234,7 +234,7 @@ async def start_campaign(req: StartCampaignRequest) -> CampaignResponse:
         trace_id=run_id,
         agent_name="vp",
         event_type="agent",
-        input=f"start_campaign | mode={req.email_mode} | target={req.target_count}",
+        input=f"start_campaign | target={req.target_count}",
         output=f"Run {run_id} started",
         duration_ms=5,
     )
@@ -377,11 +377,7 @@ async def draft_outreach(req: DraftRequest) -> EventSourceResponse:
 
 @app.post("/api/campaign/send", response_model=CampaignResponse)
 async def send_outreach(req: SendRequest) -> CampaignResponse:
-    """Phase 3: send approved emails.
-
-    Mock mode: saves as Gmail drafts (visible in your Gmail Drafts folder).
-    Real mode: sends via SendGrid.
-    """
+    """Phase 3: send approved emails via SendGrid."""
     if req.session_id:
         sessions_svc.update_session(req.session_id, phase="sending")
 
@@ -389,7 +385,7 @@ async def send_outreach(req: SendRequest) -> CampaignResponse:
         trace_id=req.run_id,
         agent_name="vp",
         event_type="agent",
-        input=f"send_outreach | {len(req.drafts)} drafts | mode={req.email_mode}",
+        input=f"send_outreach | {len(req.drafts)} drafts",
         output="Approved. Sending.",
         duration_ms=8,
     )
@@ -403,7 +399,6 @@ async def send_outreach(req: SendRequest) -> CampaignResponse:
             to_name=d.to_name,
             subject=d.subject,
             body=d.body,
-            mode=req.email_mode,
         )
         duration = int((time.time() - t0) * 1000)
 
@@ -412,7 +407,7 @@ async def send_outreach(req: SendRequest) -> CampaignResponse:
             agent_name="ae",
             tool_name="send_outreach_email",
             event_type="tool",
-            input=f"to={d.to_email} subject={d.subject} mode={req.email_mode}",
+            input=f"to={d.to_email} subject={d.subject}",
             output=json.dumps(res),
             duration_ms=duration,
             status="success" if res.get("success") else "error",
@@ -422,7 +417,6 @@ async def send_outreach(req: SendRequest) -> CampaignResponse:
             OutreachResult(
                 success=bool(res.get("success")),
                 message_id=res.get("message_id"),
-                mode=res.get("mode", "mock"),
                 error=res.get("error"),
             )
         )
@@ -430,7 +424,6 @@ async def send_outreach(req: SendRequest) -> CampaignResponse:
             {
                 "event": "sent",
                 "to": d.to_email,
-                "mode": res.get("mode"),
                 "success": res.get("success"),
             }
         )
@@ -508,35 +501,76 @@ from .services import crm as crm_svc
 
 @app.get("/api/stats")
 async def get_stats() -> dict:
-    """Aggregated stats for the overview dashboard."""
+    """Aggregated stats for the overview dashboard.
+
+    Pipeline counts are built per-prospect using the same logic as the CRM
+    endpoint: sheet stage first, then CRM manual override on top.  This means
+    when a user moves a prospect to 'Demo Booked' in the CRM, the overview
+    funnel reflects it immediately.
+    """
     all_sessions = sessions_svc.list_sessions()
     total_campaigns = len(all_sessions)
     active_campaigns = sum(1 for s in all_sessions if s.get("phase") not in ("idle", "done"))
 
-    total_prospects = 0
-    for s in all_sessions:
-        try:
-            total_prospects += len(json.loads(s.get("prospects_json", "[]")))
-        except Exception:
-            pass
+    # Batch-load CRM overrides once
+    stage_overrides = crm_svc.all_stage_overrides()
 
-    # Derive pipeline stats from session data (no sheets dependency)
+    total_prospects = 0
     pipeline: dict[str, int] = {}
-    total_drafts = 0
+
     for s in all_sessions:
+        session_id = s["session_id"]
+
+        # Parse prospects
         try:
-            p_count = len(json.loads(s.get("prospects_json", "[]")))
-            d_count = len(json.loads(s.get("drafts_json", "[]")))
-            total_drafts += d_count
-            phase = s.get("phase", "idle")
-            if p_count > 0:
-                pipeline["Sourced"] = pipeline.get("Sourced", 0) + p_count
-            if d_count > 0:
-                pipeline["Researched"] = pipeline.get("Researched", 0) + d_count
-            if phase == "done":
-                pipeline["Outreach Sent"] = pipeline.get("Outreach Sent", 0) + d_count
+            session_prospects = json.loads(s.get("prospects_json", "[]"))
         except Exception:
-            pass
+            session_prospects = []
+        total_prospects += len(session_prospects)
+
+        # Parse drafts for name→email mapping (used to infer "Researched")
+        try:
+            session_drafts = json.loads(s.get("drafts_json", "[]"))
+        except Exception:
+            session_drafts = []
+        drafted_names: set[str] = {d.get("to_name", "") for d in session_drafts}
+        phase = s.get("phase", "idle")
+
+        # Sheet-based stages
+        ws = s.get("worksheet_name")
+        sheet_stage_map: dict[str, str] = {}
+        if ws:
+            try:
+                from .services.sheets import read_all
+                if read_all:
+                    rows = read_all(worksheet=ws) or []
+                    for row in rows[1:] if len(rows) > 1 else []:
+                        if len(row) > 6:
+                            dm = row[2] if len(row) > 2 else ""
+                            st = row[6] if len(row) > 6 else ""
+                            if dm and st:
+                                sheet_stage_map[dm] = st
+            except Exception:
+                pass
+
+        # Session-level CRM overrides
+        session_overrides = stage_overrides.get(session_id, {})
+
+        # Compute the effective stage for each prospect
+        for p in session_prospects:
+            dm_name = p.get("dm_name", "")
+            # Priority: CRM override > sheet > inferred from phase
+            if dm_name in session_overrides:
+                stage = session_overrides[dm_name]
+            elif dm_name in sheet_stage_map:
+                stage = sheet_stage_map[dm_name]
+            elif phase == "done" and dm_name in drafted_names:
+                stage = "Outreach Sent"
+            elif dm_name in drafted_names:
+                stage = "Researched"
+            else:
+                stage = "Sourced"
+            pipeline[stage] = pipeline.get(stage, 0) + 1
 
     total_sent = pipeline.get("Outreach Sent", 0)
     total_replied = pipeline.get("Replied", 0)
@@ -560,53 +594,8 @@ async def get_stats() -> dict:
 
 @app.get("/api/analytics")
 async def get_analytics() -> dict:
-    """Full analytics data for the analytics dashboard."""
-    stats = await get_stats()
-
-    # Campaign breakdown
-    all_sessions = sessions_svc.list_sessions()
-    campaign_breakdown = []
-    for s in all_sessions:
-        prospects_count = 0
-        try:
-            prospects_count = len(json.loads(s.get("prospects_json", "[]")))
-        except Exception:
-            pass
-
-        drafts_count = 0
-        try:
-            drafts_count = len(json.loads(s.get("drafts_json", "[]")))
-        except Exception:
-            pass
-
-        sent_count = drafts_count if s.get("phase") == "done" else 0
-
-        campaign_breakdown.append({
-            "session_id": s["session_id"],
-            "name": s["name"],
-            "phase": s.get("phase", "idle"),
-            "prospects": prospects_count,
-            "sent": sent_count,
-            "replied": 0,
-            "demos": 0,
-            "created_at": s.get("created_at", ""),
-        })
-
-    # Stage funnel
-    pipeline = stats.get("pipeline", {})
-    total_pipeline = sum(pipeline.values()) or 1
-    stages_order = ["Sourced", "Researched", "Outreach Sent", "Replied", "Qualified", "Demo Booked", "Lost"]
-    stage_funnel = [
-        {"stage": st, "count": pipeline.get(st, 0), "pct": round(pipeline.get(st, 0) / total_pipeline * 100, 1)}
-        for st in stages_order
-    ]
-
-    return {
-        "overview": stats,
-        "campaign_breakdown": campaign_breakdown,
-        "stage_funnel": stage_funnel,
-        "daily_activity": [],  # would need timestamp tracking per event — future enhancement
-    }
+    """Redirects to stats — analytics page removed."""
+    return await get_stats()
 
 
 @app.get("/api/crm/prospects")

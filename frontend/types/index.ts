@@ -22,7 +22,6 @@ export type Draft = {
 export type SentResult = {
   success: boolean;
   message_id?: string;
-  mode?: "mock" | "real";
   error?: string;
 };
 

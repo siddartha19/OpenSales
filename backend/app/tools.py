@@ -99,13 +99,12 @@ def send_outreach_email(
     to_name: str,
     subject: str,
     body: str,
-    mode: str = "mock",
 ) -> str:
-    """Send a cold email via SendGrid. Mode: 'mock' (default) or 'real'.
+    """Send a cold email via SendGrid.
 
-    Returns JSON with success, message_id, mode.
+    Returns JSON with success, message_id.
     """
-    res = email_svc.send_email(to_email, to_name, subject, body, mode=mode)
+    res = email_svc.send_email(to_email, to_name, subject, body)
     return json.dumps(res)
 
 

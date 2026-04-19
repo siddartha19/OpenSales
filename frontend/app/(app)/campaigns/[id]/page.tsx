@@ -14,7 +14,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [loading, setLoading] = useState(true);
 
   const [icp, setIcp] = useState(DEFAULT_ICP);
-  const [emailMode, setEmailMode] = useState<"mock" | "real">("mock");
   const [targetCount, setTargetCount] = useState(8);
 
   const [runId, setRunId] = useState<string | null>(null);
@@ -86,7 +85,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       const r = await fetch("/api/proxy/campaign/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ icp, email_mode: emailMode, target_count: targetCount, session_id: sessionId }),
+        body: JSON.stringify({ icp, target_count: targetCount, session_id: sessionId }),
       });
       const j = await r.json();
       if (!r.ok || j.error) {
@@ -116,7 +115,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       const r = await fetch("/api/proxy/campaign/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
-        body: JSON.stringify({ run_id: runId, prospects: picked, email_mode: emailMode, session_id: sessionId }),
+        body: JSON.stringify({ run_id: runId, prospects: picked, session_id: sessionId }),
       });
 
       if (!r.ok) {
@@ -210,7 +209,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       const r = await fetch("/api/proxy/campaign/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: runId, drafts: [d], email_mode: emailMode, session_id: sessionId }),
+        body: JSON.stringify({ run_id: runId, drafts: [d], session_id: sessionId }),
       });
       const j = await r.json();
       const newSent = (j.sent || [])[0];
@@ -232,7 +231,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       const r = await fetch("/api/proxy/campaign/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: runId, drafts, email_mode: emailMode, session_id: sessionId }),
+        body: JSON.stringify({ run_id: runId, drafts, session_id: sessionId }),
       });
       const j = await r.json();
       setSent((prev) => [...prev, ...(j.sent || [])]);
@@ -283,7 +282,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
       await fetch("/api/proxy/campaign/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: runId, drafts: toSend, email_mode: emailMode, session_id: sessionId }),
+        body: JSON.stringify({ run_id: runId, drafts: toSend, session_id: sessionId }),
       });
       pushActivity([{ event: "followups_sent", count: toSend.length }]);
       setFollowUpSets([]);
@@ -376,20 +375,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
             placeholder="e.g. Indian AI startup founders, Series A or earlier…"
           />
           <div className="flex flex-wrap items-end gap-3 mt-3">
-            <div>
-              <label className="label">Email mode</label>
-              <div className="flex gap-2 mt-1">
-                {(["mock", "real"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setEmailMode(m)}
-                    className={`btn ${emailMode === m ? "btn-primary" : ""}`}
-                  >
-                    {m === "mock" ? "Mock send" : "Real send"}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div>
               <label className="label">Target count</label>
               <input
@@ -538,7 +523,6 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 <div key={i} className="card">
                   <div className="flex items-center gap-2">
                     <span className={`pill ${s.success ? "pill-accent" : "pill-danger"}`}>{s.success ? "sent" : "failed"}</span>
-                    <span className="pill">{s.mode}</span>
                     {s.message_id && <span className="text-xs mono text-stone-500 truncate">{s.message_id}</span>}
                   </div>
                   {s.error && <div className="text-sm text-danger mt-1">{s.error}</div>}

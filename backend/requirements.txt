@@ -17,6 +17,7 @@ python-dotenv==1.2.2
 
 # --- Email (SendGrid) ---
 sendgrid==6.12.5
+certifi>=2024.2.2  # CA bundle for SendGrid TLS verification
 
 # --- Google Sheets (OAuth) ---
 gspread==6.2.1

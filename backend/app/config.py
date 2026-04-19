@@ -29,9 +29,7 @@ LLM_MODEL = _strip(os.getenv("LLM_MODEL", "google/gemini-2.0-flash-001"))
 SENDGRID_API_KEY = _strip(os.getenv("SENDGRID_API_KEY"))
 SENDGRID_FROM_EMAIL = _strip(os.getenv("SENDGRID_FROM_EMAIL", "demo@opencode.com"))
 SENDGRID_FROM_NAME = _strip(os.getenv("SENDGRID_FROM_NAME", "SalesOS Demo"))
-MOCK_RECIPIENT_EMAIL = _strip(os.getenv("MOCK_RECIPIENT_EMAIL", "demo@opencode.com"))
 EMAIL_FALLBACK_RECIPIENT = _strip(os.getenv("EMAIL_FALLBACK_RECIPIENT", "demo@salesos.opensource"))
-EMAIL_MODE = _strip(os.getenv("EMAIL_MODE", "mock"))  # 'mock' | 'real'
 
 # ---------- Search / enrichment ----------
 EXA_API_KEY = _strip(os.getenv("EXA_API_KEY"))
@@ -71,6 +69,5 @@ def health_summary() -> dict:
         "google_sheet_id": bool(GOOGLE_SHEET_ID),
         "quick_email_verification": bool(QUICK_EMAIL_VERIFICATION_API_KEY),
         "firecrawl": bool(FIRECRAWL_API_KEY),
-        "email_mode": EMAIL_MODE,
         "model": LLM_MODEL,
     }

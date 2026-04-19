@@ -16,7 +16,7 @@ const steps = [
   {
     label: "Step 03",
     title: "AE drafts personalized emails",
-    desc: "Every draft quotes a real, recent signal — not generic mad-libs. You review, edit, approve. Then send (mock or real).",
+    desc: "Every draft quotes a real, recent signal — not generic mad-libs. You review, edit, approve. Then send via SendGrid.",
     snippet: "ae_personalize",
     sub: "hook=\"Series-A post Mar 12\"",
   },

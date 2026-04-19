@@ -25,8 +25,8 @@ const features = [
   },
   {
     icon: Send,
-    title: "Mock or real send",
-    desc: "Dry-run every campaign first. Flip the switch and route through your own SendGrid key.",
+    title: "Real sends via SendGrid",
+    desc: "Approve drafts in-app, then route through your own SendGrid key. Status, message IDs, and errors surface inline.",
   },
   {
     icon: Sheet,

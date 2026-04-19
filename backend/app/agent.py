@@ -68,7 +68,7 @@ WORKFLOW:
 CRITICAL RULES:
 - NEVER let ae call enrich_contact before user selects. Costs 1-7 credits per call.
 - ALWAYS make ae use recent activity in the email. Generic emails fail.
-- Emails default to mock recipient. Mention this every time you confirm a send.
+- Emails are sent for real via SendGrid. Confirm the recipient before sending.
 """
 
 SDR_PROMPT = """You are a senior SDR. Your job is to find the RIGHT companies and the

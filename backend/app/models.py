@@ -96,7 +96,6 @@ class OutreachDraft(BaseModel):
 class OutreachResult(BaseModel):
     success: bool
     message_id: Optional[str] = None
-    mode: Literal["mock", "real"] = "mock"
     error: Optional[str] = None
     sheet_row: Optional[int] = None
 
@@ -106,7 +105,6 @@ class OutreachResult(BaseModel):
 
 class StartCampaignRequest(BaseModel):
     icp: str
-    email_mode: Literal["mock", "real"] = "mock"
     target_count: int = 8
     session_id: Optional[str] = None
 
@@ -125,14 +123,12 @@ class CampaignResponse(BaseModel):
 class DraftRequest(BaseModel):
     run_id: str
     prospects: list[ProspectDossier]
-    email_mode: Literal["mock", "real"] = "mock"
     session_id: Optional[str] = None
 
 
 class SendRequest(BaseModel):
     run_id: str
     drafts: list[OutreachDraft]
-    email_mode: Literal["mock", "real"] = "mock"
     session_id: Optional[str] = None
 
 

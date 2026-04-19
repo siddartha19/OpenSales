@@ -47,7 +47,7 @@ export default function DashboardPreview() {
           <span className="mono text-[11px] text-stone-500">
             app.opensales.dev / sessions / 8a2f
           </span>
-          <span className="pill mono text-[10px]">mock mode</span>
+          <span className="pill mono text-[10px]">live</span>
         </div>
 
         <div className="grid grid-cols-12 min-h-[520px]">

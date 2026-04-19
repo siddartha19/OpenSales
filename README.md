@@ -18,7 +18,7 @@ Built for India's first OpenCode Buildathon (powered by GrowthX). Open source. M
 
 Outbound sales is one of the most expensive functions a startup runs. A single SDR in India costs ₹6-12 lakhs/year. Most early-stage founders do it themselves and lose 10-15 hours a week to prospecting and writing cold emails. The work is real, the work is repetitive, and the work is exactly what AI agents can now do well.
 
-OpenSales replaces the SDR + AE pair with two specialist agents and a manager that reviews their output. It works on real public data (LinkedIn, web search, B2B people databases) and sends real emails through real transports. No mock anything in the production path.
+OpenSales replaces the SDR + AE pair with two specialist agents and a manager that reviews their output. It works on real public data (LinkedIn, web search, B2B people databases) and sends real emails through real transports. No simulated paths anywhere.
 
 The whole thing runs locally. You ship outbound from your own machine, with your own SendGrid sender, your own pipeline sheet, and your own LLM key. No SaaS lock-in.
 
@@ -31,7 +31,7 @@ The whole thing runs locally. You ship outbound from your own machine, with your
 - **Enrich contacts** with verified emails and rich profile data via Crustdata.
 - **Pull LinkedIn signal** (About section, recent posts, experience) via Apify, with a 24-hour cache and automatic Exa fallback when the scrape times out.
 - **Draft personalized cold emails** that quote something the prospect actually said or did in the last few weeks. No "I hope this email finds you well." No "circling back." A 10-case eval set enforces it.
-- **Send via SendGrid** with a `mock | real` mode toggle. Default mock to your own inbox so nothing escapes by accident.
+- **Send via SendGrid** straight from the approval queue, with status, message ID, and any errors surfaced inline.
 - **Log to Google Sheets** with a 7-stage pipeline (`Sourced → Researched → Outreach Sent → Replied → Qualified → Demo Booked → Lost`).
 - **Trace every agent step** in a custom observability UI: tree view, per-step token cost, expandable prompts, total $ per campaign.
 - **Handle objections** when a prospect replies — paste the reply, the AE drafts a non-defensive response in seconds.
@@ -126,8 +126,6 @@ APIFY_LINKEDIN_ACTOR_ID=apify~linkedin-profile-scraper
 SENDGRID_API_KEY=SG...
 SENDGRID_FROM_EMAIL=you@yourdomain.com
 SENDGRID_FROM_NAME=Your Name
-MOCK_RECIPIENT_EMAIL=you+mock@gmail.com
-EMAIL_MODE=mock     # 'mock' or 'real'
 
 # Pipeline
 GOOGLE_SHEET_ID=1abc...xyz
@@ -205,7 +203,7 @@ Paste a reply into the objection box. AE drafts a response that addresses the co
 | Company discovery| [Exa](https://exa.ai)                       | Neural search across the open web. Finds companies Crustdata can't.                       |
 | People search    | [Crustdata](https://crustdata.com)          | Purpose-built for B2B people search. Filters, autocomplete, enrich.                       |
 | LinkedIn data    | [Apify](https://apify.com) + SQLite cache   | Rich LinkedIn profiles + recent posts. Cached 24h. Falls back to Exa on timeout/failure.  |
-| Email            | [SendGrid](https://sendgrid.com)            | Reliable, free tier covers 100 emails/day, mock-by-default for safety.                    |
+| Email            | [SendGrid](https://sendgrid.com)            | Reliable, free tier covers 100 emails/day. Live sends via your own sender domain.          |
 | Pipeline         | Google Sheets API                           | Mentor-visible artifact. Familiar to every salesperson alive.                             |
 | Observability    | SQLite + custom React tree view             | Trace tree, per-step token + cost, expandable prompts. ~30KB, no external service.        |
 | Backend          | FastAPI + Pydantic + uv                     | Async-native, fast cold start, modern Python tooling.                                     |
@@ -303,7 +301,7 @@ A few non-obvious calls in the v0:
 - **Apify is wrapped in a cache + fallback.** LinkedIn scrapers are slow (10-30s) and unreliable (~20% failure). The `apify.py` service caches 24h and falls back to Exa on timeout. The trace UI shows source (`apify_cache` vs `apify_live` vs `exa_fallback`) so you always know where signal came from.
 - **Custom observability beats wiring Langfuse.** SQLite + a React tree view ships in 90 minutes and gets you the same diagnostic power. No vendor lock-in, no auth setup, no separate dashboard.
 - **The VP agent reviews drafts before send.** Not just for safety. The review step is what stops AI slop. If a draft has any anti-pattern, the VP sends it back to the AE with feedback.
-- **Default email mode is mock.** Real outbound to real strangers from a hackathon project is how you torch your domain reputation. The toggle is explicit, per-campaign.
+- **Every send is reviewed before it goes out.** The VP agent and the human-in-the-loop approval queue both gate the SendGrid call. No background blasts.
 - **One LLM provider.** OpenRouter fronts ~50 models with one API key, one billing dashboard, one SDK. Swap models with one env var without rewriting agent code.
 
 ---
