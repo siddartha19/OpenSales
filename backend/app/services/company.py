@@ -1,8 +1,8 @@
 """Company profile + ICP persistence — SQLite-backed.
 
 Stores:
-  1. Company profile (singleton) — the owner's company info, scraped once.
-  2. ICP definitions (max 3) — saved ideal customer profiles the owner can
+  1. Company profile — keyed by user_email (each user has their own).
+  2. ICP definitions (max 3 per user) — saved ideal customer profiles the owner can
      select from when launching a campaign.
 """
 from __future__ import annotations
@@ -31,7 +31,8 @@ def _ensure_tables() -> None:
                 id TEXT PRIMARY KEY DEFAULT 'default',
                 data_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                user_email TEXT NOT NULL DEFAULT ''
             )
         """)
         conn.execute("""
@@ -39,50 +40,64 @@ def _ensure_tables() -> None:
                 id TEXT PRIMARY KEY,
                 data_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                user_email TEXT NOT NULL DEFAULT ''
             )
         """)
         conn.commit()
+        # Migration: add user_email if missing
+        for table in ("company_profile", "icp_definitions"):
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN user_email TEXT NOT NULL DEFAULT ''")
+                conn.commit()
+            except Exception:
+                pass
 
 
 _ensure_tables()
 
 
-# ---------- Company Profile (singleton) ----------
+# ---------- Company Profile (per-user) ----------
 
 
-def save_company_profile(data: dict) -> dict:
-    """Upsert the company profile. Only one row with id='default'."""
+def save_company_profile(data: dict, user_email: str = "") -> dict:
+    """Upsert the company profile for the given user."""
+    profile_id = f"cp_{user_email}" if user_email else "default"
     now = datetime.utcnow().isoformat()
     data_json = json.dumps(data, default=str)
 
     with _conn() as conn:
         existing = conn.execute(
-            "SELECT id FROM company_profile WHERE id = 'default'"
+            "SELECT id FROM company_profile WHERE id = ?", (profile_id,)
         ).fetchone()
 
         if existing:
             conn.execute(
-                "UPDATE company_profile SET data_json = ?, updated_at = ? WHERE id = 'default'",
-                (data_json, now),
+                "UPDATE company_profile SET data_json = ?, updated_at = ? WHERE id = ?",
+                (data_json, now, profile_id),
             )
         else:
             conn.execute(
-                "INSERT INTO company_profile (id, data_json, created_at, updated_at) VALUES ('default', ?, ?, ?)",
-                (data_json, now, now),
+                "INSERT INTO company_profile (id, data_json, created_at, updated_at, user_email) VALUES (?, ?, ?, ?, ?)",
+                (profile_id, data_json, now, now, user_email),
             )
         conn.commit()
 
-    return get_company_profile()
+    return get_company_profile(user_email=user_email)
 
 
-def get_company_profile() -> Optional[dict]:
-    """Return the company profile, or None if not set up yet."""
+def get_company_profile(user_email: str = "") -> Optional[dict]:
+    """Return the company profile for the given user, or None if not set up yet."""
+    profile_id = f"cp_{user_email}" if user_email else "default"
     with _conn() as conn:
         row = conn.execute(
-            "SELECT data_json, created_at, updated_at FROM company_profile WHERE id = 'default'"
+            "SELECT data_json, created_at, updated_at FROM company_profile WHERE id = ?",
+            (profile_id,),
         ).fetchone()
     if not row:
+        # Fallback: try the old 'default' profile for backward compat
+        if user_email:
+            return get_company_profile(user_email="")
         return None
     try:
         data = json.loads(row["data_json"])
@@ -93,22 +108,29 @@ def get_company_profile() -> Optional[dict]:
         return None
 
 
-def delete_company_profile() -> bool:
+def delete_company_profile(user_email: str = "") -> bool:
+    profile_id = f"cp_{user_email}" if user_email else "default"
     with _conn() as conn:
-        cur = conn.execute("DELETE FROM company_profile WHERE id = 'default'")
+        cur = conn.execute("DELETE FROM company_profile WHERE id = ?", (profile_id,))
         conn.commit()
     return cur.rowcount > 0
 
 
-# ---------- ICP Definitions (max 3) ----------
+# ---------- ICP Definitions (max 3 per user) ----------
 
 
-def list_icps() -> list[dict]:
-    """Return all ICPs, newest first."""
+def list_icps(user_email: str = "") -> list[dict]:
+    """Return all ICPs for the given user, newest first."""
     with _conn() as conn:
-        rows = conn.execute(
-            "SELECT id, data_json, created_at, updated_at FROM icp_definitions ORDER BY created_at DESC"
-        ).fetchall()
+        if user_email:
+            rows = conn.execute(
+                "SELECT id, data_json, created_at, updated_at FROM icp_definitions WHERE user_email = ? ORDER BY created_at DESC",
+                (user_email,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, data_json, created_at, updated_at FROM icp_definitions ORDER BY created_at DESC"
+            ).fetchall()
     result = []
     for row in rows:
         try:
@@ -140,9 +162,9 @@ def get_icp(icp_id: str) -> Optional[dict]:
         return None
 
 
-def create_icp(data: dict) -> Optional[dict]:
-    """Create a new ICP definition. Returns None if max 3 already exist."""
-    existing = list_icps()
+def create_icp(data: dict, user_email: str = "") -> Optional[dict]:
+    """Create a new ICP definition. Returns None if max 3 already exist for this user."""
+    existing = list_icps(user_email=user_email)
     if len(existing) >= MAX_ICPS:
         return None  # caller should return 400
 
@@ -152,8 +174,8 @@ def create_icp(data: dict) -> Optional[dict]:
 
     with _conn() as conn:
         conn.execute(
-            "INSERT INTO icp_definitions (id, data_json, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (icp_id, data_json, now, now),
+            "INSERT INTO icp_definitions (id, data_json, created_at, updated_at, user_email) VALUES (?, ?, ?, ?, ?)",
+            (icp_id, data_json, now, now, user_email),
         )
         conn.commit()
 

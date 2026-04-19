@@ -24,6 +24,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
+
+def _get_user_email(request: Request) -> str:
+    """Extract user email from X-User-Email header (set by the Next.js proxy)."""
+    return (request.headers.get("x-user-email") or "").strip().lower()
+
 from . import agent as agent_mod
 from .config import (
     ALLOWED_ORIGINS,
@@ -50,7 +55,9 @@ from .services import company as company_svc
 from .services import firecrawl_svc
 from .services import mailer as email_svc
 from .services import observability as obs
+from .services import sendgrid_activity as sg_activity_svc
 from .services import sessions as sessions_svc
+from .services import users as users_svc
 
 app = FastAPI(title="SalesOS Backend", version="1.0.0")
 
@@ -76,18 +83,93 @@ async def health() -> dict:
     return {"status": "ok", **health_summary()}
 
 
+# ---------- Auth: signup + login ----------
+
+
+@app.post("/api/auth/signup")
+async def signup(body: dict) -> dict:
+    """Register a new user."""
+    name = (body.get("name") or "").strip()
+    email = (body.get("email") or "").strip()
+    password = (body.get("password") or "").strip()
+
+    if not name or not email or not password:
+        raise HTTPException(status_code=400, detail="name, email, and password are required")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    user = users_svc.signup(name, email, password)
+    if user is None:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+    return {"user": user}
+
+
+@app.post("/api/auth/login")
+async def login(body: dict) -> dict:
+    """Validate credentials. Frontend sets the cookie itself."""
+    email = (body.get("email") or "").strip()
+    password = (body.get("password") or "").strip()
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="email and password are required")
+
+    user = users_svc.verify_credentials(email, password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {"user": user}
+
+
+@app.get("/api/users")
+async def list_users() -> dict:
+    """Admin endpoint: list all registered users."""
+    return {"users": users_svc.list_users()}
+
+
+# ---------- SendGrid delivery diagnostics ----------
+#
+# SendGrid's `sg.send()` returns 202 (accepted for processing) the moment the
+# API gateway takes the message. That is NOT delivery confirmation. The
+# Email Activity API is the source of truth — it tells us whether the
+# message was actually `delivered` to the recipient MX or `not_delivered`
+# (e.g. the recipient domain doesn't exist or rejected SMTP).
+#
+# These endpoints expose that truth so the UI can stop showing "sent" for
+# emails that quietly bounced.
+
+
+@app.get("/api/diagnostics/sendgrid/recent")
+async def sendgrid_recent(limit: int = 25) -> dict:
+    """Recent SendGrid activity with delivery status grouped by status."""
+    return await sg_activity_svc.status_summary(limit=limit)
+
+
+@app.post("/api/diagnostics/sendgrid/lookup")
+async def sendgrid_lookup(body: dict) -> dict:
+    """Resolve our X-Message-Id values to actual delivery status.
+
+    Body: {message_ids: ["abc...", "def..."]}
+    Returns: {results: {<id>: {status, to_email, last_event_time, ...}},
+              missing: [...]}
+    """
+    ids = body.get("message_ids") or []
+    found = await sg_activity_svc.lookup_by_message_ids(ids)
+    missing = [i for i in ids if i not in found]
+    return {"results": found, "missing": missing}
+
+
 # ---------- Sessions ----------
 
 
 @app.post("/api/sessions")
-async def create_session(req: CreateSessionRequest) -> dict:
-    sess = sessions_svc.create_session(req.name)
+async def create_session(req: CreateSessionRequest, request: Request) -> dict:
+    user_email = _get_user_email(request)
+    sess = sessions_svc.create_session(req.name, user_email=user_email)
     return {"session": sess}
 
 
 @app.get("/api/sessions")
-async def list_sessions() -> dict:
-    return {"sessions": sessions_svc.list_sessions()}
+async def list_sessions(request: Request) -> dict:
+    user_email = _get_user_email(request)
+    return {"sessions": sessions_svc.list_sessions(user_email=user_email)}
 
 
 @app.get("/api/sessions/{session_id}")
@@ -124,13 +206,15 @@ async def delete_session(session_id: str) -> dict:
 
 
 @app.get("/api/company-profile")
-async def get_company_profile() -> dict:
-    profile = company_svc.get_company_profile()
+async def get_company_profile(request: Request) -> dict:
+    user_email = _get_user_email(request)
+    profile = company_svc.get_company_profile(user_email=user_email)
     return {"profile": profile}
 
 
 @app.post("/api/company-profile")
-async def save_company_profile(req: CompanyProfileRequest) -> dict:
+async def save_company_profile(req: CompanyProfileRequest, request: Request) -> dict:
+    user_email = _get_user_email(request)
     data = req.model_dump()
     auto_scrape = data.pop("auto_scrape", True)
 
@@ -141,13 +225,14 @@ async def save_company_profile(req: CompanyProfileRequest) -> dict:
             data["scraped_website_summary"] = scrape_result.get("summary", "")
             data["scraped_raw_markdown"] = scrape_result.get("raw_markdown", "")[:2000]
 
-    profile = company_svc.save_company_profile(data)
+    profile = company_svc.save_company_profile(data, user_email=user_email)
     return {"profile": profile}
 
 
 @app.delete("/api/company-profile")
-async def delete_company_profile() -> dict:
-    ok = company_svc.delete_company_profile()
+async def delete_company_profile(request: Request) -> dict:
+    user_email = _get_user_email(request)
+    ok = company_svc.delete_company_profile(user_email=user_email)
     if not ok:
         raise HTTPException(status_code=404, detail="No company profile found")
     return {"deleted": True}
@@ -157,14 +242,16 @@ async def delete_company_profile() -> dict:
 
 
 @app.get("/api/icps")
-async def list_icps() -> dict:
-    return {"icps": company_svc.list_icps()}
+async def list_icps(request: Request) -> dict:
+    user_email = _get_user_email(request)
+    return {"icps": company_svc.list_icps(user_email=user_email)}
 
 
 @app.post("/api/icps")
-async def create_icp(req: ICPCreateRequest) -> dict:
+async def create_icp(req: ICPCreateRequest, request: Request) -> dict:
+    user_email = _get_user_email(request)
     data = req.model_dump()
-    icp = company_svc.create_icp(data)
+    icp = company_svc.create_icp(data, user_email=user_email)
     if icp is None:
         raise HTTPException(status_code=400, detail="Maximum 3 ICPs allowed. Delete one first.")
     return {"icp": icp}
@@ -864,6 +951,9 @@ async def root() -> dict:
         "name": "SalesOS Backend",
         "ui": "Next.js on :3000",
         "endpoints": [
+            "/api/auth/signup",
+            "/api/auth/login",
+            "/api/users",
             "/api/health",
             "/api/stats",
             "/api/analytics",
@@ -883,5 +973,7 @@ async def root() -> dict:
             "/api/runs",
             "/api/trace/{trace_id}",
             "/api/evals",
+            "/api/diagnostics/sendgrid/recent",
+            "/api/diagnostics/sendgrid/lookup",
         ],
     }

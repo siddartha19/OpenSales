@@ -15,6 +15,18 @@ npm install
 npm run dev        # http://localhost:3001
 ```
 
+The "Sign in" / "Get started" / "Run a campaign" buttons all link to the
+product app (a separate Next.js deployment). Configure the target host
+via `NEXT_PUBLIC_APP_URL` (no trailing slash). Defaults to
+`http://localhost:3000` for local dev.
+
+```bash
+NEXT_PUBLIC_APP_URL=https://salesos.example.com npm run build
+```
+
+`NEXT_PUBLIC_*` values are inlined at build time, so changing the URL
+requires a rebuild + redeploy.
+
 ## Build
 
 ```bash
@@ -37,7 +49,8 @@ Render provides the `PORT` env var; the `start` script reads it automatically.
 ## Links
 
 - Repo: https://github.com/siddartha19/SalesOS
-- Login (Get started / Sign in): `/login` on the same deployment
+- Sign in: `${NEXT_PUBLIC_APP_URL}/login`
+- Get started / Run a campaign: `${NEXT_PUBLIC_APP_URL}/signup`
 
 ## Sections
 

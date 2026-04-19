@@ -1,7 +1,6 @@
 import { Star } from "lucide-react";
 
-const GITHUB_URL = "https://github.com/siddartha19/SalesOS";
-const LOGIN_URL = "https://eb64-121-242-131-242.ngrok-free.app/login";
+import { GITHUB_URL, LOGIN_URL, SIGNUP_URL } from "@/lib/urls";
 
 export default function Nav() {
   return (
@@ -53,7 +52,7 @@ export default function Nav() {
             Sign in
           </a>
           <a
-            href={LOGIN_URL}
+            href={SIGNUP_URL}
             target="_blank"
             rel="noreferrer"
             className="btn btn-primary"

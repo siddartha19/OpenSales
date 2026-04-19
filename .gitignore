@@ -9,6 +9,7 @@ __pycache__/
 venv/
 agent_runs.db
 agent_runs.db-journal
+agent_runs.db.backup-*
 node_modules/
 .next/
 .DS_Store

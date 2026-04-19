@@ -8,6 +8,12 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # URL of the deployed product app (Next.js). Used by the landing
+      # page's "Sign in" / "Get started" / "Run a campaign" buttons.
+      # MUST be set per-environment (no trailing slash). Inlined at
+      # build time via NEXT_PUBLIC_*, so changing it requires a redeploy.
+      - key: NEXT_PUBLIC_APP_URL
+        value: "https://salesos.example.com"
     routes:
       - type: rewrite
         source: /*

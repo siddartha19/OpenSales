@@ -1,7 +1,6 @@
 import { Play, Github, Copy } from "lucide-react";
 
-const GITHUB_URL = "https://github.com/siddartha19/SalesOS";
-const LOGIN_URL = "https://eb64-121-242-131-242.ngrok-free.app/login";
+import { GITHUB_URL, SIGNUP_URL } from "@/lib/urls";
 
 export default function Hero() {
   return (
@@ -25,7 +24,7 @@ export default function Hero() {
 
       <div className="mt-8 flex items-center justify-center gap-2.5 flex-wrap">
         <a
-          href={LOGIN_URL}
+          href={SIGNUP_URL}
           target="_blank"
           rel="noreferrer"
           className="btn btn-primary"

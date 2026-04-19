@@ -1,6 +1,7 @@
 """Session persistence — SQLite-backed CRUD for campaign sessions.
 
 Each session maps to one Google Sheet worksheet tab.
+Sessions are scoped per-user via user_email.
 """
 from __future__ import annotations
 
@@ -32,13 +33,20 @@ def _ensure_table() -> None:
                 run_ids_json   TEXT NOT NULL DEFAULT '[]',
                 prospects_json TEXT NOT NULL DEFAULT '[]',
                 drafts_json    TEXT NOT NULL DEFAULT '[]',
-                activity_json  TEXT NOT NULL DEFAULT '[]'
+                activity_json  TEXT NOT NULL DEFAULT '[]',
+                user_email     TEXT NOT NULL DEFAULT ''
             )
         """)
         conn.commit()
         # Migration: add activity_json if missing (existing DBs)
         try:
             conn.execute("ALTER TABLE sessions ADD COLUMN activity_json TEXT NOT NULL DEFAULT '[]'")
+            conn.commit()
+        except Exception:
+            pass  # column already exists
+        # Migration: add user_email if missing (existing DBs)
+        try:
+            conn.execute("ALTER TABLE sessions ADD COLUMN user_email TEXT NOT NULL DEFAULT ''")
             conn.commit()
         except Exception:
             pass  # column already exists
@@ -55,13 +63,13 @@ def _sanitize_worksheet_name(name: str) -> str:
     return clean[:100]
 
 
-def create_session(name: str) -> dict:
+def create_session(name: str, user_email: str = "") -> dict:
     """Create a new session. Returns the session dict."""
     session_id = f"ses_{uuid.uuid4().hex[:10]}"
     worksheet_name = _sanitize_worksheet_name(name)
 
     # Dedupe worksheet name if it already exists
-    existing = [s["worksheet_name"] for s in list_sessions()]
+    existing = [s["worksheet_name"] for s in list_sessions(user_email=user_email)]
     if worksheet_name in existing:
         worksheet_name = f"{worksheet_name} ({session_id[-6:]})"
 
@@ -69,21 +77,28 @@ def create_session(name: str) -> dict:
 
     with _conn() as conn:
         conn.execute(
-            """INSERT INTO sessions (session_id, name, worksheet_name, created_at, phase, run_ids_json, prospects_json, drafts_json)
-               VALUES (?, ?, ?, ?, 'idle', '[]', '[]', '[]')""",
-            (session_id, name, worksheet_name, now),
+            """INSERT INTO sessions (session_id, name, worksheet_name, created_at, phase, run_ids_json, prospects_json, drafts_json, user_email)
+               VALUES (?, ?, ?, ?, 'idle', '[]', '[]', '[]', ?)""",
+            (session_id, name, worksheet_name, now, user_email),
         )
         conn.commit()
 
     return _get_session(session_id)
 
 
-def list_sessions() -> list[dict]:
-    """Return all sessions, newest first."""
+def list_sessions(user_email: str = "") -> list[dict]:
+    """Return sessions for the given user, newest first.
+    If user_email is empty, returns all sessions (backward compat)."""
     with _conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM sessions ORDER BY created_at DESC"
-        ).fetchall()
+        if user_email:
+            rows = conn.execute(
+                "SELECT * FROM sessions WHERE user_email = ? ORDER BY created_at DESC",
+                (user_email,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM sessions ORDER BY created_at DESC"
+            ).fetchall()
     return [_row_to_dict(r) for r in rows]
 
 

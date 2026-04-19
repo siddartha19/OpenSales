@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import MetricCard from "@/components/MetricCard";
 import { HomePageSkeleton } from "@/components/Skeleton";
@@ -9,14 +9,42 @@ import EmptyState from "@/components/EmptyState";
 import { useDocumentTitle } from "@/lib/useDocumentTitle";
 import type { StatsOverview, SessionInfo } from "@/types";
 
+function greetingFor(date: Date): string {
+  const h = date.getHours();
+  if (h < 5) return "Still up";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  if (h < 22) return "Good evening";
+  return "Burning the midnight oil";
+}
+
+function nameFromEmail(email: string | null): string {
+  if (!email) return "there";
+  const local = email.split("@")[0] || "there";
+  const first = local.split(/[._-]/)[0] || local;
+  const clean = first.replace(/\d+$/, "") || first;
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
 export default function HomePage() {
   useDocumentTitle("Overview");
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
     loadStats();
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setEmail(j?.user?.email ?? null))
+      .catch(() => {});
+    // Initialize and tick every minute so the greeting flips when the
+    // user crosses noon / 5pm / 10pm with the tab open.
+    setNow(new Date());
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
   }, []);
 
   async function loadStats() {
@@ -34,10 +62,6 @@ export default function HomePage() {
     }
   }
 
-  if (loading) {
-    return <HomePageSkeleton />;
-  }
-
   const s = stats || {
     total_campaigns: 0,
     active_campaigns: 0,
@@ -51,16 +75,45 @@ export default function HomePage() {
     recent_sessions: [],
   };
 
+  // Hooks must run on every render — keep this above the early return.
+  const funnelSummary = useMemo(() => {
+    if (s.total_prospects === 0) {
+      return "Your funnel is empty — spin up a campaign to start sourcing prospects.";
+    }
+    const parts: string[] = [];
+    parts.push(`${s.total_prospects} prospect${s.total_prospects === 1 ? "" : "s"} in your funnel`);
+    if (s.total_sent > 0) {
+      parts.push(`${s.total_sent} sent`);
+    }
+    if (s.total_replied > 0) {
+      parts.push(`${s.total_replied} replied (${s.response_rate.toFixed(1)}%)`);
+    }
+    if (s.total_demos > 0) {
+      parts.push(`${s.total_demos} demo${s.total_demos === 1 ? "" : "s"} booked`);
+    }
+    return parts.join(" · ") + ".";
+  }, [s.total_prospects, s.total_sent, s.total_replied, s.total_demos, s.response_rate]);
+
+  if (loading) {
+    return <HomePageSkeleton />;
+  }
+
   const STAGES = ["Sourced", "Researched", "Outreach Sent", "Replied", "Qualified", "Demo Booked"];
   const maxStage = Math.max(...STAGES.map((st) => s.pipeline[st] || 0), 1);
+
+  const displayName = nameFromEmail(email);
+  const greeting = now ? greetingFor(now) : "Welcome";
 
   return (
     <div>
       {/* Header */}
       <header className="border-b border-border bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="text-sm text-stone-500 mt-1.5">Your SalesOS command center</p>
+        <div className="max-w-6xl mx-auto px-6 py-5">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {greeting}, {displayName}
+            <span className="text-stone-400 font-normal">.</span>
+          </h1>
+          <p className="text-sm text-stone-500 mt-1.5">{funnelSummary}</p>
         </div>
       </header>
 

@@ -1,6 +1,6 @@
 import { Github, Twitter, Linkedin } from "lucide-react";
 
-const GITHUB_URL = "https://github.com/siddartha19/SalesOS";
+import { GITHUB_URL } from "@/lib/urls";
 
 const columns = [
   {
