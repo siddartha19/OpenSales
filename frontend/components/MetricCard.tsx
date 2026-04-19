@@ -14,7 +14,7 @@ export default function MetricCard({
   return (
     <div className="card">
       <div className="label mb-1">{label}</div>
-      <div className={`text-2xl font-semibold ${accent ? "text-accent" : ""}`}>{value}</div>
+      <div className={`text-2xl font-semibold tabular-nums ${accent ? "text-accent" : ""}`}>{value}</div>
       {sub && <div className="text-xs text-stone-500 mt-0.5">{sub}</div>}
     </div>
   );
