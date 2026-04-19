@@ -89,7 +89,7 @@ export default function GovernancePage() {
     <div>
       <header className="border-b border-border bg-white">
         <div className="max-w-5xl mx-auto px-6 py-4">
-          <h1 className="text-xl font-semibold">Governance</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Governance</h1>
           <p className="text-sm text-stone-500 mt-1.5">Company info, ICPs, and sender settings</p>
         </div>
       </header>
