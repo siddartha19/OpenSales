@@ -98,14 +98,18 @@ export default function Footer() {
               <Github size={15} />
             </a>
             <a
-              href="#"
+              href="https://x.com/gcs319"
+              target="_blank"
+              rel="noreferrer"
               aria-label="Twitter"
               className="w-8 h-8 inline-flex items-center justify-center rounded-md text-stone-500 hover:bg-stone-50 hover:text-ink transition"
             >
               <Twitter size={15} />
             </a>
             <a
-              href="#"
+              href="https://www.linkedin.com/in/siddartha19"
+              target="_blank"
+              rel="noreferrer"
               aria-label="LinkedIn"
               className="w-8 h-8 inline-flex items-center justify-center rounded-md text-stone-500 hover:bg-stone-50 hover:text-ink transition"
             >
