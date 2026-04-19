@@ -44,10 +44,20 @@ export default function Nav() {
             <Star size={12} strokeWidth={2.25} />
             <span className="mono">github</span>
           </a>
-          <a href={LOGIN_URL} className="btn btn-ghost">
+          <a
+            href={LOGIN_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost"
+          >
             Sign in
           </a>
-          <a href={LOGIN_URL} className="btn btn-primary">
+          <a
+            href={LOGIN_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary"
+          >
             Get started
           </a>
         </div>

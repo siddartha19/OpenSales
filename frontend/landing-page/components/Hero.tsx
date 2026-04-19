@@ -24,7 +24,12 @@ export default function Hero() {
       </p>
 
       <div className="mt-8 flex items-center justify-center gap-2.5 flex-wrap">
-        <a href={LOGIN_URL} className="btn btn-primary">
+        <a
+          href={LOGIN_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="btn btn-primary"
+        >
           <Play size={14} strokeWidth={2.5} fill="currentColor" />
           Run a campaign
         </a>
