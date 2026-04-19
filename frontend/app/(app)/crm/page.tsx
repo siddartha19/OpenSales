@@ -332,23 +332,42 @@ export default function CRMPage() {
                           <td className="py-2.5 pr-3 font-medium">{p.company}</td>
                           <td className="py-2.5 pr-3 text-stone-500 mono text-xs">{p.email || "—"}</td>
                           <td className="py-2.5 pr-3">
-                            <select
-                              className="text-xs rounded-full px-2 py-0.5 font-medium border-0 cursor-pointer bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1"
+                            <div
+                              className="relative inline-flex items-center group/stage rounded-full"
                               style={{
-                                background: STAGE_BG[p.stage] || "#f3f1ea",
+                                background: STAGE_BG[p.stage] || "#ece9df",
                                 color: STAGE_FG[p.stage] || "#555148",
                               }}
-                              value={p.stage}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                changeStage(p, e.target.value);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
                             >
-                              {STAGES.map((s) => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
+                              <select
+                                aria-label={`Change stage for ${p.dm_name}`}
+                                className="appearance-none text-xs rounded-full pl-2.5 pr-6 py-0.5 font-medium border-0 cursor-pointer bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1"
+                                value={p.stage}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  changeStage(p, e.target.value);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {STAGES.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                              <svg
+                                width="10"
+                                height="10"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="absolute right-1.5 pointer-events-none opacity-70"
+                                aria-hidden="true"
+                              >
+                                <polyline points="6 9 12 15 18 9" />
+                              </svg>
+                            </div>
                           </td>
                           <td className="py-2.5 pr-3 text-right">
                             {p.fit_score ? <span className="pill pill-accent text-[10px]">{Math.round(p.fit_score * 100)}%</span> : "—"}
