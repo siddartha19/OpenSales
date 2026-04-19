@@ -1,10 +1,6 @@
-import { Github, BookOpen, Zap, Building2, ArrowRight } from "lucide-react";
+import { Github, BookOpen, Building2, ArrowRight } from "lucide-react";
 
-import {
-  GITHUB_URL,
-  HOSTED_CHECKOUT_URL,
-  ENTERPRISE_CONTACT_URL,
-} from "@/lib/urls";
+import { GITHUB_URL, ENTERPRISE_CONTACT_URL } from "@/lib/urls";
 
 type Tier = {
   id: string;
@@ -47,29 +43,6 @@ const tiers: Tier[] = [
         icon: <BookOpen size={14} strokeWidth={2.25} />,
       },
     },
-  },
-  {
-    id: "hosted",
-    name: "Hosted",
-    tagline: "We run it. You paste an ICP and hit send.",
-    price: "$25",
-    priceSuffix: "/ month",
-    pill: { label: "Most popular", accent: true },
-    perks: [
-      "Managed infra — zero setup",
-      "Hosted observability dashboard",
-      "Up to 500 prospects / month",
-      "Up to 200 personalized emails / month",
-      "Email support, 24h response",
-    ],
-    cta: {
-      primary: {
-        label: "Start for $25",
-        href: HOSTED_CHECKOUT_URL,
-        icon: <Zap size={14} strokeWidth={2.25} />,
-      },
-    },
-    highlight: true,
   },
   {
     id: "enterprise",
@@ -210,22 +183,22 @@ export default function Pricing() {
       <div className="max-w-2xl mx-auto text-center mb-12">
         <span className="label">Pricing</span>
         <h2 className="mt-2 text-[32px] md:text-[40px] font-semibold tracking-tightest leading-[1.1]">
-          Self-host it free. Or let us run it.
+          Self-host it free. Or go Enterprise.
         </h2>
         <p className="mt-3 text-stone-500 text-[15px] leading-relaxed">
-          OpenSales is open source. Use the hosted plan when you want infra,
-          observability, and updates handled for you.
+          OpenSales is open source. Talk to us when you need a dedicated
+          deploy, SSO, and bespoke agents for your team.
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5 md:gap-6 items-stretch">
+      <div className="grid md:grid-cols-2 gap-5 md:gap-6 items-stretch max-w-3xl mx-auto">
         {tiers.map((tier) => (
           <TierCard key={tier.id} tier={tier} />
         ))}
       </div>
 
       <p className="mt-8 text-center text-[12.5px] text-stone-500">
-        All plans use your own LLM and data-source API keys. No markup on
+        Both plans use your own LLM and data-source API keys. No markup on
         tokens or credits.
       </p>
     </section>

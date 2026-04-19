@@ -20,12 +20,6 @@ export const SIGNUP_URL = `${APP_URL}/signup`;
 
 export const GITHUB_URL = "https://github.com/siddartha19/SalesOS";
 
-// Hosted plan checkout. Set NEXT_PUBLIC_HOSTED_CHECKOUT_URL on Render to a
-// Stripe / Razorpay payment link. Falls back to the signup page so the CTA
-// is never dead in dev.
-export const HOSTED_CHECKOUT_URL =
-  process.env.NEXT_PUBLIC_HOSTED_CHECKOUT_URL || SIGNUP_URL;
-
 // Enterprise contact. Set NEXT_PUBLIC_ENTERPRISE_CONTACT_URL on Render to a
 // Cal.com link, Tally form, or mailto:. Defaults to a sensible mailto.
 export const ENTERPRISE_CONTACT_URL =
