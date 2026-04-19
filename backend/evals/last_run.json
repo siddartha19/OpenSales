@@ -1,0 +1,209 @@
+{
+  "eval_set": "cold_email_quality_v1",
+  "model": "google/gemini-2.0-flash-001",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "duration_s": 27.58,
+  "results": [
+    {
+      "id": "1_indian_ai_founder_eval_pipeline",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Riya M. -- agent evals > prompts?",
+        "body": "Saw your post about rebuilding the Velocity AI agent eval pipeline. \"Evals beat prompts every time\" -- solid insight.\n\nWe're seeing agent companies use SalesOS to automate customized demos for each prospect, using live data.\n\nWhat eval metrics are you prioritizing right now?",
+        "personalization_hooks": [
+          "linkedin post about agent eval pipeline",
+          "linkedin post quoting 'evals beat prompts every time'"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is well-written, personalized, and avoids common cold email anti-patterns. It directly references the recipient's work, asks a relevant question, and is concise.",
+      "duration_ms": 3566
+    },
+    {
+      "id": "2_us_devtools_founder",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Marcus L: Activation up 38%",
+        "body": "Saw you shipped v2 onboarding and got activation up 38%. Patience > novelty, as you said. Congrats!\n\nWe help solo founders like you scale sales without adding headcount.\n\nWhat's been the hardest part of user onboarding?",
+        "personalization_hooks": [
+          "shipped v2 onboarding",
+          "activation up 38%",
+          "patience > novelty"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is good. It references a specific achievement (v2 onboarding and activation lift) and asks a specific question about user onboarding. No anti-patterns were found.",
+      "duration_ms": 2683
+    },
+    {
+      "id": "3_fintech_cto_no_recent_signal",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Kavita - payments infra at Settle",
+        "body": "I came across Settle because of your focus on payments infrastructure. We help companies like yours scale sales and support globally with AI-powered conversation intelligence.\n\nWhat are the biggest challenges you're facing as you scale your engineering team?",
+        "personalization_hooks": [
+          "payments infrastructure focus"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is good. It hits on payments infra and asks a concrete question.",
+      "duration_ms": 2497
+    },
+    {
+      "id": "4_long_subject_smell",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Aman G. on deleting 30k LOC",
+        "body": "Aman, saw your post about deleting 30k LOC this sprint. Less code, more leverage is the way.\n\nWe help Eng leaders at companies like Drift automate away distractions and focus on what matters.\n\nWhat's the biggest distraction on your team right now?",
+        "personalization_hooks": [
+          "linkedin post about deleting 30k LOC"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is well-written and personalized. It references the specific event mentioned in the subject line and asks a relevant question.",
+      "duration_ms": 2424
+    },
+    {
+      "id": "5_crm_founder_already_uses_competitor",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Priya R. on AEs writing outbound",
+        "body": "Priya, you said 'if your AE writes the email it's an SDR's job. AI can do better.'\n\nWe built SalesOS to give AEs superpowers, automating the SDR grunt work. It powers outbound for teams like Gong and Lavender.\n\nWhat's one thing you wish AI could automate for your AEs?",
+        "personalization_hooks": [
+          "linkedin post about AEs writing outbound"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is good. It opens with a relevant quote, focuses on solving a pain point, and avoids any aggressive or comparative language.",
+      "duration_ms": 2678
+    },
+    {
+      "id": "6_pure_research_founder",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Axion Labs' RL training loop",
+        "body": "Dr. Neha, saw you open-sourced your small-batch RL training loop \u2013 very cool to see comparable PPO performance at 10x less compute. \n\nWe help research teams like yours scale compute resources on demand. \n\nOut of curiosity, what's the biggest bottleneck you're facing in your current RL projects?",
+        "personalization_hooks": [
+          "open-sourced small-batch RL training loop",
+          "comparable to PPO at 10x less compute"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is well-written and avoids common cold email pitfalls. It references the recipient's work and asks a specific, relevant question.",
+      "duration_ms": 2751
+    },
+    {
+      "id": "7_no_linkedin_data_at_all",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Vikram, thoughts on SalesOS for Quill?",
+        "body": "I came across Quill because of your content marketing SaaS focus.\n\nSalesOS helps VPs of Sales like yourself automate prospect research and personalize outreach, increasing response rates.\n\nAre you open to a quick chat about your current sales automation setup?",
+        "personalization_hooks": [
+          "content marketing SaaS focus"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email satisfies all must-include criteria and avoids all anti-patterns. The opening line explains the reason for reaching out, referencing the recipient's role and company focus. It also ends with a specific question.",
+      "duration_ms": 2693
+    },
+    {
+      "id": "8_announcement_signal",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Plume Logistics: Seed and SalesOS?",
+        "body": "Congrats on closing the ~$3M seed, Tarun. Saw you're hiring sales in Bengaluru and Pune. \n\nAlera helps founders like you scale sales faster, by automating prospecting and outreach.\n\nWhat CRM are you planning to use?",
+        "personalization_hooks": [
+          "Seed announcement",
+          "Hiring sales team"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is good. It references the seed round and asks a question tied to hiring. It avoids the specified anti-patterns.",
+      "duration_ms": 2655
+    },
+    {
+      "id": "9_emoji_heavy_prospect",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Sana, congrats on the Sprout Studio template gallery!",
+        "body": "Saw you launched the new template gallery with 200+ designs! Very cool.\n\nAlera helps SaaS founders like you scale outbound sales with AI-powered personalization.\n\nWhat's been your biggest challenge in getting the word out about Sprout Studio?",
+        "personalization_hooks": [
+          "Launched new template gallery",
+          "200+ designs"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is good. It references the template gallery launch and the tone is appropriate for the brand.",
+      "duration_ms": 2724
+    },
+    {
+      "id": "10_b2b_security_skeptical",
+      "ok": true,
+      "passed": true,
+      "draft": {
+        "subject": "Rohit J: 2-week security reviews at Ledgermint",
+        "body": "Rohit, I saw your post about running all third-party tools through a 2-week security review. Smart. \n\nAlera automatically collects audit evidence across your SaaS, cloud and data infrastructure, so you can prove compliance without derailing engineering.\n\nWhat's the biggest headache in your SOC these days?",
+        "personalization_hooks": [
+          "linkedin_recent_posts"
+        ]
+      },
+      "must_include_results": [
+        true,
+        true
+      ],
+      "anti_patterns_found": [],
+      "notes": "The email is good. It references the security review culture and doesn't ask for a demo.",
+      "duration_ms": 2904
+    }
+  ],
+  "timestamp": 1776580027.558625
+}

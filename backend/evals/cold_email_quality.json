@@ -1,0 +1,182 @@
+{
+  "name": "cold_email_quality_v1",
+  "description": "10 hand-labeled cases. AE drafts a cold email per case; LLM judge checks must-includes + anti-patterns.",
+  "cases": [
+    {
+      "id": "1_indian_ai_founder_eval_pipeline",
+      "prospect": {
+        "name": "Riya M.",
+        "title": "CEO",
+        "company": "Velocity AI",
+        "linkedin_about": "Building Velocity AI — agent infra for India's next 1M startups. Previously led infra at a unicorn.",
+        "recent_posts": [
+          {"text": "spent the weekend rebuilding our agent eval pipeline. evals beat prompts every time."}
+        ],
+        "web_recent_activity": []
+      },
+      "icp": "Indian AI startup founders, Series A or earlier, building agent products",
+      "must_include": [
+        "reference to her post about agent evals",
+        "specific question about her eval pipeline",
+        "under 100 words"
+      ],
+      "anti_patterns": [
+        "I hope this email finds you well",
+        "I noticed your impressive work",
+        "circling back",
+        "Quick question",
+        "any emoji"
+      ]
+    },
+    {
+      "id": "2_us_devtools_founder",
+      "prospect": {
+        "name": "Marcus L.",
+        "title": "Founder",
+        "company": "Pebble Devtools",
+        "linkedin_about": "Founder of Pebble. Building dev tools for solo SaaS makers.",
+        "recent_posts": [
+          {"text": "shipped our v2 onboarding this week. activation up 38%. patience > novelty."}
+        ]
+      },
+      "icp": "US devtools founders, solo or 2-person teams, building tools for indie SaaS",
+      "must_include": [
+        "reference to v2 onboarding or activation lift",
+        "specific question, not vague"
+      ],
+      "anti_patterns": ["touching base", "circling back", "synergy", "leverage"]
+    },
+    {
+      "id": "3_fintech_cto_no_recent_signal",
+      "prospect": {
+        "name": "Kavita S.",
+        "title": "CTO",
+        "company": "Settle",
+        "linkedin_about": "Engineering at Settle. Payments infra. ex-Razorpay.",
+        "recent_posts": []
+      },
+      "icp": "Indian fintech CTOs, Series A or B, payments-adjacent",
+      "must_include": [
+        "honest note about scarce signal OR uses ex-Razorpay or payments infra hook",
+        "concrete question"
+      ],
+      "anti_patterns": ["I hope this finds you", "wanted to reach out", "I'd love to learn"]
+    },
+    {
+      "id": "4_long_subject_smell",
+      "prospect": {
+        "name": "Aman G.",
+        "title": "Head of Engineering",
+        "company": "Drift",
+        "linkedin_about": "Eng leadership. Sub-50 person teams, scaled twice.",
+        "recent_posts": [{"text": "we deleted 30k LOC this sprint. less code, more leverage."}]
+      },
+      "icp": "Eng leaders at growing SaaS",
+      "must_include": [
+        "subject under 60 chars",
+        "reference to the deletion sprint"
+      ],
+      "anti_patterns": ["subject longer than 60 characters", "I noticed"]
+    },
+    {
+      "id": "5_crm_founder_already_uses_competitor",
+      "prospect": {
+        "name": "Priya R.",
+        "title": "Founder",
+        "company": "Loop CRM",
+        "linkedin_about": "Founder. Building Loop. We power outbound for ~120 mid-market sales teams.",
+        "recent_posts": [{"text": "if your AE writes the email it's an SDR's job. AI can do better."}]
+      },
+      "icp": "CRM founders",
+      "must_include": [
+        "quotes or paraphrases the AE/SDR insight",
+        "non-defensive tone"
+      ],
+      "anti_patterns": ["our solution is better", "we beat HubSpot", "you should switch"]
+    },
+    {
+      "id": "6_pure_research_founder",
+      "prospect": {
+        "name": "Dr. Neha B.",
+        "title": "Co-Founder & Chief Scientist",
+        "company": "Axion Labs",
+        "linkedin_about": "Reinforcement learning researcher. Co-founded Axion. Earlier: DeepMind.",
+        "recent_posts": [
+          {"text": "open-sourced our small-batch RL training loop. comparable to PPO at 10x less compute."}
+        ]
+      },
+      "icp": "AI research founders, post-PhD",
+      "must_include": [
+        "reference to RL training loop or compute efficiency claim",
+        "technically specific question"
+      ],
+      "anti_patterns": ["I hope you're well", "let me introduce", "wanted to connect"]
+    },
+    {
+      "id": "7_no_linkedin_data_at_all",
+      "prospect": {
+        "name": "Vikram T.",
+        "title": "VP Sales",
+        "company": "Quill",
+        "linkedin_about": "",
+        "recent_posts": []
+      },
+      "icp": "VPs of Sales at content/marketing SaaS",
+      "must_include": [
+        "honest framing about why we are reaching out (e.g., role + company specific)",
+        "specific question"
+      ],
+      "anti_patterns": ["I noticed your work", "I came across your impressive profile"]
+    },
+    {
+      "id": "8_announcement_signal",
+      "prospect": {
+        "name": "Tarun K.",
+        "title": "CEO",
+        "company": "Plume Logistics",
+        "linkedin_about": "Logistics infra for Indian D2C brands.",
+        "recent_posts": [
+          {"text": "we just closed our seed. ~$3M. building the team — eng + sales — across Bengaluru and Pune."}
+        ]
+      },
+      "icp": "Indian D2C-adjacent founders, post-seed",
+      "must_include": [
+        "reference to the seed close OR the hiring push",
+        "tied-to-hiring question"
+      ],
+      "anti_patterns": ["congrats on your seed!", "Quick question"]
+    },
+    {
+      "id": "9_emoji_heavy_prospect",
+      "prospect": {
+        "name": "Sana V.",
+        "title": "Founder",
+        "company": "Sprout Studio",
+        "linkedin_about": "✨ building Sprout — design tools for non-designers ✨",
+        "recent_posts": [{"text": "✨ launched our new template gallery! 200+ designs ✨"}]
+      },
+      "icp": "Design tool founders, prosumer-focused",
+      "must_include": [
+        "specific reference to template gallery launch",
+        "tone matches the prospect's playful brand"
+      ],
+      "anti_patterns": ["I hope this finds you well", "Quick question"]
+    },
+    {
+      "id": "10_b2b_security_skeptical",
+      "prospect": {
+        "name": "Rohit J.",
+        "title": "Head of Security",
+        "company": "Ledgermint",
+        "linkedin_about": "Heads security at Ledgermint. Custodial crypto. Auditor-friendly.",
+        "recent_posts": [{"text": "we run all third-party tools through a 2-week security review. no exceptions."}]
+      },
+      "icp": "Security leaders at fintechs",
+      "must_include": [
+        "reference to the security-review-first culture",
+        "respects gatekeeping (no demo-asks before context)"
+      ],
+      "anti_patterns": ["book a demo", "15 minutes on the calendar", "Quick question"]
+    }
+  ]
+}
