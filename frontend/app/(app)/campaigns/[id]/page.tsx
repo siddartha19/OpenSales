@@ -17,6 +17,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
 
   const [icp, setIcp] = useState(DEFAULT_ICP);
   const [targetCount, setTargetCount] = useState(8);
+  const [autonomous, setAutonomous] = useState(false);
 
   const [runId, setRunId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "sourcing" | "review" | "drafting" | "ready" | "sending" | "done">("idle");
@@ -26,6 +27,11 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   const [sent, setSent] = useState<SentResult[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [autoSummary, setAutoSummary] = useState<{
+    sourced: number; drafted: number; approved: number; sent: number;
+    send_failed: number; rejected: number;
+  } | null>(null);
+  const [autoRejected, setAutoRejected] = useState<{ prospect: string; subject: string; reasons: string[] }[]>([]);
 
   // Follow-up state
   const [followUpSets, setFollowUpSets] = useState<FollowUpSet[]>([]);
@@ -74,13 +80,109 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
     })();
   }, [sessionId]);
 
-  async function startCampaign() {
+  async function startAutonomous() {
     setError(null);
     setPhase("sourcing");
     setProspects([]);
     setDrafts([]);
     setSent([]);
     setSelected(new Set());
+    setAutoSummary(null);
+    setAutoRejected([]);
+    pushActivity([{ event: "autonomous_run_started", icp, target_count: targetCount }]);
+
+    try {
+      const r = await fetch("/api/proxy/campaign/autonomous", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({
+          icp, target_count: targetCount, session_id: sessionId, autonomous: true,
+        }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setError(j.error || "Autonomous run failed.");
+        setPhase("idle");
+        return;
+      }
+      const reader = r.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      if (!reader) {
+        setPhase("idle");
+        return;
+      }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const dataStr = line.slice(5).trim();
+          if (!dataStr) continue;
+          try {
+            const evt = JSON.parse(dataStr);
+            if (evt.step === "vp_planning") {
+              pushActivity([{ event: "vp_planning", target_count: evt.target_count }]);
+            } else if (evt.step === "sourced") {
+              setProspects((evt.prospects || []) as Prospect[]);
+              setRunId(evt.run_id || runId);
+              pushActivity([{ event: "sourced", count: evt.count }]);
+              setPhase("drafting");
+            } else if (evt.step === "drafting") {
+              pushActivity([{
+                event: "ae_drafting", prospect: evt.prospect, company: evt.company,
+                detail: `(${evt.index + 1}/${evt.total})`,
+              }]);
+            } else if (evt.step === "draft_complete") {
+              setDrafts((prev) => [...prev, evt.draft]);
+              pushActivity([{ event: "drafted", prospect: evt.prospect, subject: evt.subject }]);
+            } else if (evt.step === "draft_error") {
+              pushActivity([{ event: "draft_error", prospect: evt.prospect, error: evt.error }]);
+            } else if (evt.step === "vp_reviewing") {
+              pushActivity([{ event: "vp_reviewing", prospect: evt.prospect }]);
+            } else if (evt.step === "vp_verdict") {
+              pushActivity([{
+                event: evt.approved ? "vp_approved" : "vp_rejected",
+                prospect: evt.prospect,
+                confidence: evt.confidence,
+                reasons: evt.reasons?.join("; ") || "",
+              }]);
+            } else if (evt.step === "sending") {
+              setPhase("sending");
+              pushActivity([{ event: "ae_sending", to: evt.to }]);
+            } else if (evt.step === "sent") {
+              setSent((prev) => [...prev, {
+                success: evt.success, message_id: evt.message_id,
+              } as SentResult]);
+              pushActivity([{ event: "sent", to: evt.to, success: evt.success }]);
+            } else if (evt.step === "all_done") {
+              setAutoSummary(evt.summary || null);
+              setAutoRejected(evt.rejected || []);
+              setPhase("done");
+              pushActivity([{ event: "autonomous_run_complete", ...evt.summary }]);
+            }
+          } catch { /* skip non-JSON */ }
+        }
+      }
+    } catch (e: any) {
+      setError(e?.message || "Network error during autonomous run.");
+      setPhase("idle");
+    }
+  }
+
+  async function startCampaign() {
+    if (autonomous) return startAutonomous();
+    setError(null);
+    setPhase("sourcing");
+    setProspects([]);
+    setDrafts([]);
+    setSent([]);
+    setSelected(new Set());
+    setAutoSummary(null);
+    setAutoRejected([]);
     pushActivity([{ event: "vp_planning", icp, target_count: targetCount }]);
 
     try {
@@ -386,16 +488,75 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                 className="input mt-1 w-24"
               />
             </div>
+            <label
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition select-none ${
+                autonomous ? "border-accent bg-accentSoft/30" : "border-border"
+              }`}
+              title="VP plans, SDR sources, AE drafts, VP reviews each draft, AE sends — all without human approval"
+            >
+              <input
+                type="checkbox"
+                checked={autonomous}
+                onChange={(e) => setAutonomous(e.target.checked)}
+              />
+              <span className="text-sm">
+                <span className="font-medium">Autonomous mode</span>
+                <span className="text-stone-500 block text-xs">
+                  No human in the loop. VP reviews each draft and auto-sends approved ones.
+                </span>
+              </span>
+            </label>
             <button
               onClick={startCampaign}
               disabled={phase === "sourcing" || phase === "drafting" || phase === "sending"}
               className="btn btn-primary ml-auto"
             >
-              {phase === "sourcing" ? "Sourcing…" : "▶ Run sales team"}
+              {phase === "sourcing" ? "Sourcing…" :
+               autonomous ? "▶ Run autonomously" : "▶ Run sales team"}
             </button>
           </div>
           {error && <div className="text-sm pill pill-danger mt-3">{error}</div>}
         </section>
+
+        {/* Autonomous-run summary card (only shown after autonomous run) */}
+        {autoSummary && (
+          <section className="card border-accent">
+            <div className="flex items-baseline justify-between mb-3">
+              <div>
+                <h3 className="font-semibold">Autonomous run complete</h3>
+                <p className="text-sm text-stone-500">VP reviewed every draft. Approved ones went out.</p>
+              </div>
+              {runId && <Link href={`/trace/${runId}`} className="btn text-sm">View full trace →</Link>}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              {[
+                { label: "Sourced", value: autoSummary.sourced, tone: "" },
+                { label: "Drafted", value: autoSummary.drafted, tone: "" },
+                { label: "VP approved", value: autoSummary.approved, tone: "pill-accent" },
+                { label: "VP rejected", value: autoSummary.rejected, tone: "pill-warn" },
+                { label: "Sent", value: autoSummary.sent, tone: "pill-accent" },
+                { label: "Send failed", value: autoSummary.send_failed, tone: "pill-danger" },
+              ].map((s) => (
+                <div key={s.label} className="card text-center">
+                  <div className="text-2xl font-semibold">{s.value}</div>
+                  <div className={`text-xs pill ${s.tone}`}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            {autoRejected.length > 0 && (
+              <div className="mt-3">
+                <div className="text-sm font-medium mb-1">VP rejection reasons</div>
+                <ul className="text-xs space-y-1 text-stone-600">
+                  {autoRejected.map((r, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{r.prospect}</span> — {r.reasons.join("; ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Live activity */}
         <section className="card">

@@ -604,6 +604,93 @@ class _ReplySchema(BaseModel):
     reasoning: str = PField(default="", description="One sentence on why this response works.")
 
 
+# ---------- VP autonomous review (LLM-as-judge gate before send) ----------
+
+VP_REVIEW_SYSTEM = """You are the VP of Sales reviewing a cold email draft from your AE
+before it goes out under your name. You have ZERO tolerance for AI slop because
+the prospect is a real founder and our reputation rides on every send.
+
+Approve ONLY if all of these hold:
+1. Subject is specific (mentions the prospect or a specific topic), under 60 chars,
+   and is NOT clickbait / NOT generic ("Quick question", "Touching base", etc.).
+2. Body is under 150 words.
+3. Body opens with a SPECIFIC observation (a real quote, fact, or named project) —
+   NOT generic praise ("impressive work", "exciting space").
+4. Body contains ZERO of these anti-patterns:
+   - "I hope this email finds you well"
+   - "I noticed your impressive work"
+   - "circling back" / "touching base" / "just wanted to reach out"
+   - Generic compliments without a specific reference
+   - Emoji (unless prospect's own activity uses them)
+5. There is ONE clear, low-friction call-to-action (a specific question or 15-min ask).
+6. Body does not fabricate facts about the prospect or their company.
+
+Return reject_reasons as a list of short strings (one per failed check). Empty list = approve.
+Return approved=true only if reject_reasons is empty AND the email feels like a human SDR
+who actually researched the prospect would send it.
+"""
+
+
+class _VPReviewSchema(BaseModel):
+    approved: bool = PField(..., description="True ONLY if all checks pass and email is send-ready.")
+    reject_reasons: list[str] = PField(default_factory=list, description="Short bullets, one per failed check.")
+    confidence: float = PField(default=0.8, ge=0, le=1, description="0-1, how sure VP is of the verdict.")
+
+
+async def vp_review_draft(
+    draft: OutreachDraft,
+    trace_id: str,
+) -> dict:
+    """Autonomous VP review of an AE draft. Pure LLM-as-judge — no human in the loop.
+
+    Returns: {approved: bool, reject_reasons: [str], confidence: float}
+    Logged as a 'vp' tool call so the trace shows the autonomous gate firing.
+    """
+    import time
+
+    t0 = time.time()
+    llm = make_llm(temperature=0.0, max_tokens=400).with_structured_output(_VPReviewSchema)
+    payload = json.dumps(
+        {
+            "to_name": draft.to_name,
+            "company": draft.company,
+            "subject": draft.subject,
+            "body": draft.body,
+        }
+    )
+    try:
+        verdict = await llm.ainvoke(
+            [
+                SystemMessage(content=VP_REVIEW_SYSTEM),
+                HumanMessage(content=f"Review this draft:\n{payload}"),
+            ]
+        )
+        result = {
+            "approved": bool(verdict.approved),
+            "reject_reasons": list(verdict.reject_reasons or []),
+            "confidence": float(verdict.confidence),
+        }
+    except Exception as e:
+        # Fail closed: if the judge errors, do NOT auto-send.
+        result = {
+            "approved": False,
+            "reject_reasons": [f"VP review error: {e}"],
+            "confidence": 0.0,
+        }
+
+    obs.log_event(
+        trace_id=trace_id,
+        agent_name="vp",
+        tool_name="review_draft",
+        event_type="tool",
+        input=f"to={draft.to_email} subject={draft.subject}",
+        output=json.dumps(result),
+        duration_ms=int((time.time() - t0) * 1000),
+        status="success" if result["approved"] else "error",
+    )
+    return result
+
+
 # --- module init: ensure DB exists ---
 obs.init_db()
 apify_svc.init_cache()

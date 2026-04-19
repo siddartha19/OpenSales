@@ -590,6 +590,175 @@ async def send_outreach(req: SendRequest, request: Request) -> CampaignResponse:
     )
 
 
+@app.post("/api/campaign/autonomous")
+async def autonomous_campaign(req: StartCampaignRequest, request: Request) -> EventSourceResponse:
+    """Fully autonomous mode — VP plans, SDR sources, AE drafts, VP reviews, AE sends.
+    Zero human approval in the loop. Streams every step via SSE so the trace is live.
+
+    Per-prospect flow:
+      sourcing → drafting → vp_review → (approved → send) | (rejected → hold)
+
+    Final event includes pipeline summary: sourced, drafted, approved, sent, rejected.
+    Used for the MaaS L5 'real output' demo: paste an ICP, watch the system complete
+    a real task end-to-end with no babysitting.
+    """
+    user_email = _require_user(request)
+    run_id = f"run_{uuid.uuid4().hex[:10]}"
+
+    if req.session_id:
+        _own_session_or_404(req.session_id, user_email)
+        sessions_svc.add_run_id(req.session_id, run_id)
+
+    async def event_generator():
+        # ---------- Phase 1: VP plans + SDR sources ----------
+        if req.session_id:
+            sessions_svc.update_session(req.session_id, phase="sourcing")
+        yield {"event": "progress", "data": json.dumps({
+            "step": "vp_planning", "icp": req.icp, "target_count": req.target_count,
+        })}
+
+        obs.log_event(
+            trace_id=run_id, agent_name="vp", event_type="agent",
+            input=f"AUTONOMOUS | ICP={req.icp[:200]} target={req.target_count}",
+            output="Routing to SDR. No human in loop.", duration_ms=15,
+        )
+
+        prospects = await agent_mod.run_sourcing(req.icp, run_id, req.target_count)
+        if not prospects:
+            yield {"event": "done", "data": json.dumps({
+                "step": "all_done", "run_id": run_id, "session_id": req.session_id,
+                "summary": {"sourced": 0, "drafted": 0, "approved": 0, "sent": 0, "rejected": 0},
+                "error": "SDR returned no prospects.",
+            })}
+            return
+
+        if req.session_id:
+            sessions_svc.update_session(
+                req.session_id, phase="drafting",
+                prospects_json=json.dumps([p.model_dump() for p in prospects]),
+            )
+        yield {"event": "progress", "data": json.dumps({
+            "step": "sourced", "count": len(prospects),
+            "prospects": [{"dm_name": p.dm_name, "company": p.company} for p in prospects],
+        })}
+
+        # ---------- Phase 2 + 3 + 4: per-prospect draft → VP review → send ----------
+        drafts: list[OutreachDraft] = []
+        sent: list[OutreachResult] = []
+        rejected: list[dict] = []
+        approved_count = 0
+        activity: list[dict] = []
+
+        for idx, p in enumerate(prospects):
+            yield {"event": "progress", "data": json.dumps({
+                "step": "drafting", "prospect": p.dm_name, "company": p.company,
+                "index": idx, "total": len(prospects),
+            })}
+
+            # AE draft
+            try:
+                draft = await agent_mod.draft_outreach_for_prospect(
+                    p, trace_id=run_id,
+                    from_name=SENDGRID_FROM_NAME or "Alera Founder",
+                    fallback_email=EMAIL_FALLBACK_RECIPIENT,
+                )
+                drafts.append(draft)
+                activity.append({"event": "drafted", "prospect": p.dm_name, "subject": draft.subject})
+                yield {"event": "progress", "data": json.dumps({
+                    "step": "draft_complete", "prospect": p.dm_name,
+                    "subject": draft.subject, "draft": draft.model_dump(),
+                })}
+            except Exception as e:
+                activity.append({"event": "draft_error", "prospect": p.dm_name, "error": str(e)[:200]})
+                yield {"event": "progress", "data": json.dumps({
+                    "step": "draft_error", "prospect": p.dm_name, "error": str(e)[:200],
+                })}
+                continue
+
+            # VP autonomous review
+            yield {"event": "progress", "data": json.dumps({
+                "step": "vp_reviewing", "prospect": p.dm_name,
+            })}
+            verdict = await agent_mod.vp_review_draft(draft, trace_id=run_id)
+            yield {"event": "progress", "data": json.dumps({
+                "step": "vp_verdict", "prospect": p.dm_name,
+                "approved": verdict["approved"],
+                "reasons": verdict["reject_reasons"],
+                "confidence": verdict["confidence"],
+            })}
+
+            if not verdict["approved"]:
+                rejected.append({
+                    "prospect": p.dm_name, "subject": draft.subject,
+                    "reasons": verdict["reject_reasons"],
+                })
+                activity.append({"event": "vp_rejected", "prospect": p.dm_name,
+                                 "reasons": verdict["reject_reasons"]})
+                continue
+
+            # Approved — AE sends
+            approved_count += 1
+            yield {"event": "progress", "data": json.dumps({
+                "step": "sending", "prospect": p.dm_name, "to": draft.to_email,
+            })}
+            t0 = time.time()
+            res = email_svc.send_email(
+                to_email=draft.to_email, to_name=draft.to_name,
+                subject=draft.subject, body=draft.body,
+            )
+            duration = int((time.time() - t0) * 1000)
+            obs.log_event(
+                trace_id=run_id, agent_name="ae", tool_name="send_outreach_email",
+                event_type="tool",
+                input=f"to={draft.to_email} subject={draft.subject}",
+                output=json.dumps(res), duration_ms=duration,
+                status="success" if res.get("success") else "error",
+            )
+            sent_result = OutreachResult(
+                success=bool(res.get("success")),
+                message_id=res.get("message_id"),
+                error=res.get("error"),
+            )
+            sent.append(sent_result)
+            activity.append({"event": "sent", "to": draft.to_email,
+                             "success": res.get("success")})
+            yield {"event": "progress", "data": json.dumps({
+                "step": "sent", "prospect": p.dm_name, "to": draft.to_email,
+                "success": res.get("success"), "message_id": res.get("message_id"),
+            })}
+
+        # ---------- Persist + final summary ----------
+        if req.session_id:
+            sessions_svc.update_session(
+                req.session_id, phase="done",
+                drafts_json=json.dumps([d.model_dump() for d in drafts]),
+                activity_json=json.dumps(activity),
+            )
+
+        summary = {
+            "sourced": len(prospects),
+            "drafted": len(drafts),
+            "approved": approved_count,
+            "sent": sum(1 for s in sent if s.success),
+            "send_failed": sum(1 for s in sent if not s.success),
+            "rejected": len(rejected),
+        }
+        obs.log_event(
+            trace_id=run_id, agent_name="vp", event_type="agent",
+            input="autonomous_run_complete",
+            output=json.dumps(summary), duration_ms=10,
+        )
+        yield {"event": "done", "data": json.dumps({
+            "step": "all_done", "run_id": run_id, "session_id": req.session_id,
+            "summary": summary,
+            "drafts": [d.model_dump() for d in drafts],
+            "rejected": rejected,
+            "activity": activity,
+        })}
+
+    return EventSourceResponse(event_generator())
+
+
 @app.post("/api/campaign/objection", response_model=ObjectionResponse)
 async def draft_objection(req: ObjectionRequest) -> ObjectionResponse:
     """Bonus: paste-in reply, AE drafts a non-defensive response."""

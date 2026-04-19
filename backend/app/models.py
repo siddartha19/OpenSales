@@ -107,6 +107,7 @@ class StartCampaignRequest(BaseModel):
     icp: str
     target_count: int = 8
     session_id: Optional[str] = None
+    autonomous: bool = False  # if True, /api/campaign/autonomous runs source → draft → VP review → send
 
 
 class CampaignResponse(BaseModel):
