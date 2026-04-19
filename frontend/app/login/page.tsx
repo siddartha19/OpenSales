@@ -39,10 +39,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md card">
         <div className="mb-6">
           <div className="text-xs tracking-widest text-stone-500 uppercase">SalesOS</div>
-          <h1 className="text-2xl font-semibold mt-1">AI Sales Team</h1>
+          <h1 className="text-2xl font-semibold mt-1 tracking-tight">AI Sales Team</h1>
           <p className="text-sm text-stone-500 mt-1">
             VP Sales + SDR + AE on LangGraph. Sign in to run a campaign.
           </p>
+          <div className="mt-3 flex items-center gap-2 text-xs text-accent bg-accentSoft border border-accent/20 rounded-md px-2.5 py-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Demo mode — credentials prefilled. Just click Sign in.</span>
+          </div>
         </div>
         <form onSubmit={submit} className="space-y-3">
           <div>
@@ -74,7 +80,7 @@ export default function LoginPage() {
           </button>
         </form>
         <div className="text-xs text-stone-400 mt-6">
-          Demo creds prefilled. Powered by LangGraph supervisor + Exa + Crustdata + Apify + SendGrid.
+          Powered by LangGraph supervisor · Exa · Crustdata · Apify · SendGrid.
         </div>
       </div>
     </main>
