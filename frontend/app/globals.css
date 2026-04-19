@@ -27,7 +27,7 @@
   .btn-ghost { background: transparent; border-color: transparent; }
   .btn-ghost:hover { background: #f3f1ea; }
   .card {
-    @apply rounded-xl bg-white border border-border p-4;
+    @apply rounded-xl bg-white border border-border p-4 md:p-5;
     box-shadow: 0 1px 0 rgba(12,14,22,0.03);
   }
   .pill {
