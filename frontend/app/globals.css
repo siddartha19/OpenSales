@@ -32,7 +32,7 @@
   }
   .pill {
     @apply inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium;
-    background: #f3f1ea;
+    background: #ece9df;
     color: #555148;
   }
   .pill-accent { background: #dff5e8; color: #0a7c4a; }
