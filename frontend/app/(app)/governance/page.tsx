@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDocumentTitle } from "@/lib/useDocumentTitle";
 import type { CompanyInfo, ICPProfile } from "@/types";
 
@@ -21,6 +21,15 @@ export default function GovernancePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editingIcp, setEditingIcp] = useState<string | null>(null);
+  const savedCompanyRef = useRef<CompanyInfo>(EMPTY_COMPANY);
+
+  const isDirty =
+    company.name !== savedCompanyRef.current.name ||
+    company.domain !== savedCompanyRef.current.domain ||
+    company.industry !== savedCompanyRef.current.industry ||
+    company.team_size !== savedCompanyRef.current.team_size ||
+    company.description !== savedCompanyRef.current.description ||
+    company.meeting_link !== savedCompanyRef.current.meeting_link;
 
   useEffect(() => {
     loadGovernance();
@@ -30,7 +39,10 @@ export default function GovernancePage() {
     try {
       const r = await fetch("/api/proxy/governance");
       const j = await r.json();
-      if (j.company) setCompany(j.company);
+      if (j.company) {
+        setCompany(j.company);
+        savedCompanyRef.current = j.company;
+      }
       if (j.icps) setIcps(j.icps);
     } catch {}
   }
@@ -44,6 +56,7 @@ export default function GovernancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(company),
       });
+      savedCompanyRef.current = company;
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {} finally {
@@ -94,7 +107,7 @@ export default function GovernancePage() {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-6 py-6 pb-24 space-y-6">
         {/* Company Info */}
         <section className="card">
           <div className="flex items-baseline justify-between mb-4">
@@ -251,6 +264,37 @@ export default function GovernancePage() {
           )}
         </section>
       </div>
+
+      {/* Sticky save bar — appears only when company form is dirty */}
+      {isDirty && (
+        <div
+          role="region"
+          aria-label="Unsaved company changes"
+          className="fixed bottom-0 left-60 right-0 z-30 border-t border-border bg-white/95 backdrop-blur-sm shadow-[0_-1px_0_rgba(12,14,22,0.04)]"
+        >
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
+            <div className="text-sm text-stone-600">
+              <span className="font-medium text-ink">Unsaved changes</span> to Company Information.
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCompany(savedCompanyRef.current)}
+                disabled={saving}
+                className="btn text-sm"
+              >
+                Discard
+              </button>
+              <button
+                onClick={saveCompany}
+                disabled={saving}
+                className="btn btn-primary text-sm"
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
