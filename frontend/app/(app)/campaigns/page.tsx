@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDocumentTitle } from "@/lib/useDocumentTitle";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import type { SessionInfo } from "@/types";
 
 export default function CampaignsListPage() {
@@ -68,9 +69,7 @@ export default function CampaignsListPage() {
     });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-stone-400">Loading campaigns…</div>
-    );
+    return <ListPageSkeleton title="Loading campaigns" rowCount={4} />;
   }
 
   return (

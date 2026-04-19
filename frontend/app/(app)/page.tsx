@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import MetricCard from "@/components/MetricCard";
+import { HomePageSkeleton } from "@/components/Skeleton";
 import { useDocumentTitle } from "@/lib/useDocumentTitle";
 import type { StatsOverview, SessionInfo } from "@/types";
 
@@ -26,11 +27,7 @@ export default function HomePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-stone-400">
-        Loading dashboard…
-      </div>
-    );
+    return <HomePageSkeleton />;
   }
 
   const s = stats || {

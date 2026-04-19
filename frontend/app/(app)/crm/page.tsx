@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useDocumentTitle } from "@/lib/useDocumentTitle";
+import { CRMSkeleton } from "@/components/Skeleton";
 import type { CRMProspect, CRMNote, SessionInfo } from "@/types";
 
 type ViewMode = "table" | "board" | "list";
@@ -180,7 +181,7 @@ export default function CRMPage() {
   }, [filtered]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-stone-400">Loading CRM…</div>;
+    return <CRMSkeleton />;
   }
 
   return (
