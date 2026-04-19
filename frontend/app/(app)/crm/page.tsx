@@ -392,6 +392,7 @@ export default function CRMPage() {
                           {/* Move stage dropdown */}
                           <div className="mt-2 pt-2 border-t border-stone-100">
                             <select
+                              aria-label="Move to stage"
                               className="text-[10px] w-full rounded px-1.5 py-0.5 border border-stone-200 bg-white cursor-pointer"
                               value={p.stage}
                               onChange={(e) => {
@@ -401,7 +402,7 @@ export default function CRMPage() {
                               onClick={(e) => e.stopPropagation()}
                             >
                               {STAGES.map((s) => (
-                                <option key={s} value={s}>Move to: {s}</option>
+                                <option key={s} value={s}>{s}</option>
                               ))}
                             </select>
                           </div>
