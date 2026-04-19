@@ -67,7 +67,7 @@ export default function CampaignsListPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-stone-400">Loading campaigns...</div>
+      <div className="flex items-center justify-center h-screen text-stone-400">Loading campaigns…</div>
     );
   }
 
@@ -160,7 +160,7 @@ export default function CampaignsListPage() {
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder="New campaign name..."
+              placeholder="New campaign name…"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createSession()}
@@ -170,7 +170,7 @@ export default function CampaignsListPage() {
               disabled={creating || !newName.trim()}
               className="btn btn-primary"
             >
-              {creating ? "Creating..." : "+ New Campaign"}
+              {creating ? "Creating…" : "+ New Campaign"}
             </button>
           </div>
         </div>

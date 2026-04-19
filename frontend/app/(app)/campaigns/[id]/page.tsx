@@ -337,7 +337,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
   );
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-stone-400">Loading campaign...</div>;
+    return <div className="flex items-center justify-center h-screen text-stone-400">Loading campaign…</div>;
   }
 
   return (
@@ -580,7 +580,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                   disabled={followUpSelected.size === 0 || followUpLoading}
                   className="btn btn-primary"
                 >
-                  {followUpLoading ? "Generating..." : `Generate follow-ups (${followUpSelected.size})`}
+                  {followUpLoading ? "Generating…" : `Generate follow-ups (${followUpSelected.size})`}
                 </button>
               </>
             )}
@@ -632,7 +632,7 @@ export default function CampaignDetailPage({ params }: { params: { id: string } 
                     disabled={followUpSending || !followUpSets.some((f) => f.selected_variant)}
                     className="btn btn-primary"
                   >
-                    {followUpSending ? "Sending..." : "Send selected follow-ups"}
+                    {followUpSending ? "Sending…" : "Send selected follow-ups"}
                   </button>
                   <button onClick={() => { setFollowUpSets([]); setFollowUpSelected(new Set()); }} className="btn">
                     Cancel

@@ -178,7 +178,7 @@ export default function CRMPage() {
   }, [filtered]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-stone-400">Loading CRM...</div>;
+    return <div className="flex items-center justify-center h-screen text-stone-400">Loading CRM…</div>;
   }
 
   return (
@@ -211,7 +211,7 @@ export default function CRMPage() {
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <input
                 className="input max-w-xs"
-                placeholder="Search name, company, email..."
+                placeholder="Search name, company, email…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -572,7 +572,7 @@ export default function CRMPage() {
                   </button>
                 ))}
               </div>
-              {stageUpdating && <div className="text-xs text-stone-400 mt-1">Updating...</div>}
+              {stageUpdating && <div className="text-xs text-stone-400 mt-1">Updating…</div>}
             </div>
 
             {/* Notes */}
@@ -583,7 +583,7 @@ export default function CRMPage() {
               <div className="mb-3">
                 <textarea
                   className="textarea text-sm h-20"
-                  placeholder="Add a note — meeting feedback, call summary, next steps..."
+                  placeholder="Add a note — meeting feedback, call summary, next steps…"
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
                   onKeyDown={(e) => {
@@ -599,7 +599,7 @@ export default function CRMPage() {
                     disabled={addingNote || !noteText.trim()}
                     className="btn btn-primary text-xs py-1"
                   >
-                    {addingNote ? "Saving..." : "Add Note"}
+                    {addingNote ? "Saving…" : "Add Note"}
                   </button>
                 </div>
               </div>

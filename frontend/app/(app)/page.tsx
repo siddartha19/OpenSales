@@ -26,7 +26,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-stone-400">
-        Loading dashboard...
+        Loading dashboard…
       </div>
     );
   }

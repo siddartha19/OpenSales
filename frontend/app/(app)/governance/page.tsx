@@ -102,7 +102,7 @@ export default function GovernancePage() {
               disabled={saving}
               className="btn btn-primary"
             >
-              {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+              {saving ? "Saving…" : saved ? "Saved" : "Save Changes"}
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -148,7 +148,7 @@ export default function GovernancePage() {
                 className="textarea mt-1 h-20"
                 value={company.description}
                 onChange={(e) => setCompany({ ...company, description: e.target.value })}
-                placeholder="What your company does..."
+                placeholder="What your company does…"
               />
             </div>
             <div className="md:col-span-2">
