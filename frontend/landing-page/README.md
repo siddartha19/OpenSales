@@ -43,7 +43,7 @@ Render provides the `PORT` env var; the `start` script reads it automatically.
 
 1. Sticky nav with GitHub + Sign in / Get started
 2. Hero with tagline, subhead, CTAs, npx snippet, terminal dashboard preview
-3. Social proof strip (Exa · Crustdata · Apify · SendGrid · LangGraph · OpenAI)
+3. Social proof strip (Exa · Crustdata · Apify · SendGrid · LangGraph · OpenCode)
 4. How it works — VP Sales, SDR, AE
 5. What you get — 6-card feature grid
 6. Full dashboard preview (sidebar, ICP input, live activity, prospects)

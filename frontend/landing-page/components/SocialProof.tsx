@@ -1,5 +1,5 @@
 export default function SocialProof() {
-  const logos = ["Exa", "Crustdata", "Apify", "SendGrid", "LangGraph", "OpenAI"];
+  const logos = ["Exa", "Crustdata", "Apify", "SendGrid", "LangGraph", "OpenCode"];
   return (
     <section className="border-y hairline bg-white">
       <div className="max-w-5xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center gap-4 md:gap-10 justify-center">
