@@ -111,7 +111,7 @@ export default function Sidebar() {
               <div className="px-3 py-1.5">
                 <div className="flex gap-1">
                   <input
-                    className="input text-xs py-1 px-2 flex-1"
+                    className="input text-sm py-1 px-2 flex-1"
                     placeholder="New campaign…"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
