@@ -162,6 +162,15 @@ def get_icp(icp_id: str) -> Optional[dict]:
         return None
 
 
+def get_icp_owner(icp_id: str) -> Optional[str]:
+    """Return the user_email that owns the given ICP, or None if not found."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT user_email FROM icp_definitions WHERE id = ?", (icp_id,)
+        ).fetchone()
+    return row["user_email"] if row else None
+
+
 def create_icp(data: dict, user_email: str = "") -> Optional[dict]:
     """Create a new ICP definition. Returns None if max 3 already exist for this user."""
     existing = list_icps(user_email=user_email)

@@ -29,6 +29,44 @@ def _get_user_email(request: Request) -> str:
     """Extract user email from X-User-Email header (set by the Next.js proxy)."""
     return (request.headers.get("x-user-email") or "").strip().lower()
 
+
+def _require_user(request: Request) -> str:
+    """Like _get_user_email but rejects unauthenticated requests."""
+    email = _get_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return email
+
+
+def _own_session_or_404(session_id: str, user_email: str) -> dict:
+    """Fetch a session and ensure the current user owns it.
+
+    Returns the session dict; raises 404 if the session doesn't exist OR if
+    it belongs to another user. We deliberately use 404 (not 403) so users
+    can't probe for the existence of other users' sessions.
+    """
+    from .services import sessions as sessions_svc  # local import to avoid cycle
+    sess = sessions_svc.get_session(session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Session not found")
+    owner = (sess.get("user_email") or "").strip().lower()
+    # Legacy sessions (created before per-user scoping) have an empty owner;
+    # treat them as visible to everyone so old data doesn't disappear.
+    if owner and owner != user_email:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return sess
+
+
+def _user_trace_ids(user_email: str) -> list[str]:
+    """Collect every trace/run id that belongs to the given user's sessions."""
+    from .services import sessions as sessions_svc  # local import
+    out: list[str] = []
+    for s in sessions_svc.list_sessions(user_email=user_email):
+        for rid in s.get("run_ids") or []:
+            if rid:
+                out.append(rid)
+    return out
+
 from . import agent as agent_mod
 from .config import (
     ALLOWED_ORIGINS,
@@ -161,27 +199,28 @@ async def sendgrid_lookup(body: dict) -> dict:
 
 @app.post("/api/sessions")
 async def create_session(req: CreateSessionRequest, request: Request) -> dict:
-    user_email = _get_user_email(request)
+    user_email = _require_user(request)
     sess = sessions_svc.create_session(req.name, user_email=user_email)
     return {"session": sess}
 
 
 @app.get("/api/sessions")
 async def list_sessions(request: Request) -> dict:
-    user_email = _get_user_email(request)
+    user_email = _require_user(request)
     return {"sessions": sessions_svc.list_sessions(user_email=user_email)}
 
 
 @app.get("/api/sessions/{session_id}")
-async def get_session(session_id: str) -> dict:
-    sess = sessions_svc.get_session(session_id)
-    if not sess:
-        raise HTTPException(status_code=404, detail="Session not found")
+async def get_session(session_id: str, request: Request) -> dict:
+    user_email = _require_user(request)
+    sess = _own_session_or_404(session_id, user_email)
     return {"session": sess}
 
 
 @app.put("/api/sessions/{session_id}")
-async def update_session(session_id: str, body: dict) -> dict:
+async def update_session(session_id: str, body: dict, request: Request) -> dict:
+    user_email = _require_user(request)
+    _own_session_or_404(session_id, user_email)
     sess = sessions_svc.update_session(
         session_id,
         name=body.get("name"),
@@ -195,7 +234,9 @@ async def update_session(session_id: str, body: dict) -> dict:
 
 
 @app.delete("/api/sessions/{session_id}")
-async def delete_session(session_id: str) -> dict:
+async def delete_session(session_id: str, request: Request) -> dict:
+    user_email = _require_user(request)
+    _own_session_or_404(session_id, user_email)
     ok = sessions_svc.delete_session(session_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -257,24 +298,30 @@ async def create_icp(req: ICPCreateRequest, request: Request) -> dict:
     return {"icp": icp}
 
 
-@app.get("/api/icps/{icp_id}")
-async def get_icp(icp_id: str) -> dict:
+def _own_icp_or_404(icp_id: str, user_email: str) -> dict:
+    """Fetch an ICP and verify the current user owns it."""
     icp = company_svc.get_icp(icp_id)
     if not icp:
         raise HTTPException(status_code=404, detail="ICP not found")
+    owner = (company_svc.get_icp_owner(icp_id) or "").strip().lower()
+    if owner and owner != user_email:
+        raise HTTPException(status_code=404, detail="ICP not found")
+    return icp
+
+
+@app.get("/api/icps/{icp_id}")
+async def get_icp(icp_id: str, request: Request) -> dict:
+    user_email = _require_user(request)
+    icp = _own_icp_or_404(icp_id, user_email)
     return {"icp": icp}
 
 
 @app.put("/api/icps/{icp_id}")
-async def update_icp(icp_id: str, req: ICPUpdateRequest) -> dict:
-    # Only pass non-None fields
+async def update_icp(icp_id: str, req: ICPUpdateRequest, request: Request) -> dict:
+    user_email = _require_user(request)
+    existing = _own_icp_or_404(icp_id, user_email)
     update_data = {k: v for k, v in req.model_dump().items() if v is not None}
-    # Merge with existing
-    existing = company_svc.get_icp(icp_id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="ICP not found")
     merged = {**existing, **update_data}
-    # Remove metadata fields before saving
     for key in ("id", "created_at", "updated_at"):
         merged.pop(key, None)
     icp = company_svc.update_icp(icp_id, merged)
@@ -284,7 +331,9 @@ async def update_icp(icp_id: str, req: ICPUpdateRequest) -> dict:
 
 
 @app.delete("/api/icps/{icp_id}")
-async def delete_icp(icp_id: str) -> dict:
+async def delete_icp(icp_id: str, request: Request) -> dict:
+    user_email = _require_user(request)
+    _own_icp_or_404(icp_id, user_email)
     ok = company_svc.delete_icp(icp_id)
     if not ok:
         raise HTTPException(status_code=404, detail="ICP not found")
@@ -308,12 +357,14 @@ async def scrape_website(body: dict) -> dict:
 
 
 @app.post("/api/campaign/start", response_model=CampaignResponse)
-async def start_campaign(req: StartCampaignRequest) -> CampaignResponse:
+async def start_campaign(req: StartCampaignRequest, request: Request) -> CampaignResponse:
     """Phase 1: parse ICP, run SDR, return prospect dossiers for review."""
+    user_email = _require_user(request)
     run_id = f"run_{uuid.uuid4().hex[:10]}"
 
-    # Link run to session
+    # Link run to session — require ownership when a session is referenced
     if req.session_id:
+        _own_session_or_404(req.session_id, user_email)
         sessions_svc.add_run_id(req.session_id, run_id)
         sessions_svc.update_session(req.session_id, phase="sourcing")
 
@@ -353,7 +404,7 @@ async def start_campaign(req: StartCampaignRequest) -> CampaignResponse:
 
 
 @app.post("/api/campaign/draft")
-async def draft_outreach(req: DraftRequest) -> EventSourceResponse:
+async def draft_outreach(req: DraftRequest, request: Request) -> EventSourceResponse:
     """Phase 2: AE drafts personalized emails — streams progress via SSE.
 
     Each prospect emits step-by-step events so the frontend shows a live trace:
@@ -365,6 +416,10 @@ async def draft_outreach(req: DraftRequest) -> EventSourceResponse:
       - { step: "draft_complete", draft: {...} }
     Final event: { step: "all_done", drafts: [...] }
     """
+    user_email = _require_user(request)
+    if req.session_id:
+        _own_session_or_404(req.session_id, user_email)
+
     async def event_generator():
         if req.session_id:
             sessions_svc.update_session(req.session_id, phase="drafting")
@@ -463,9 +518,11 @@ async def draft_outreach(req: DraftRequest) -> EventSourceResponse:
 
 
 @app.post("/api/campaign/send", response_model=CampaignResponse)
-async def send_outreach(req: SendRequest) -> CampaignResponse:
+async def send_outreach(req: SendRequest, request: Request) -> CampaignResponse:
     """Phase 3: send approved emails via SendGrid."""
+    user_email = _require_user(request)
     if req.session_id:
+        _own_session_or_404(req.session_id, user_email)
         sessions_svc.update_session(req.session_id, phase="sending")
 
     obs.log_event(
@@ -551,12 +608,20 @@ async def draft_objection(req: ObjectionRequest) -> ObjectionResponse:
 
 
 @app.get("/api/runs")
-async def list_runs(limit: int = 30) -> dict:
-    return {"runs": obs.list_recent_traces(limit)}
+async def list_runs(request: Request, limit: int = 30) -> dict:
+    """Recent agent traces — scoped to the current user's sessions."""
+    user_email = _require_user(request)
+    user_traces = _user_trace_ids(user_email)
+    return {"runs": obs.list_recent_traces(limit, trace_ids=user_traces)}
 
 
 @app.get("/api/trace/{trace_id}")
-async def get_trace(trace_id: str) -> dict:
+async def get_trace(trace_id: str, request: Request) -> dict:
+    """Trace detail — only viewable by the user that owns the parent session."""
+    user_email = _require_user(request)
+    user_traces = set(_user_trace_ids(user_email))
+    if trace_id not in user_traces:
+        raise HTTPException(status_code=404, detail="Trace not found")
     rows = obs.fetch_trace(trace_id)
     summary = obs.trace_summary(trace_id)
     return {"summary": summary, "rows": rows}
@@ -587,20 +652,22 @@ from .services import crm as crm_svc
 
 
 @app.get("/api/stats")
-async def get_stats() -> dict:
-    """Aggregated stats for the overview dashboard.
+async def get_stats(request: Request) -> dict:
+    """Aggregated stats for the overview dashboard — scoped to the current user.
 
     Pipeline counts are built per-prospect using the same logic as the CRM
     endpoint: sheet stage first, then CRM manual override on top.  This means
     when a user moves a prospect to 'Demo Booked' in the CRM, the overview
     funnel reflects it immediately.
     """
-    all_sessions = sessions_svc.list_sessions()
+    user_email = _require_user(request)
+    all_sessions = sessions_svc.list_sessions(user_email=user_email)
     total_campaigns = len(all_sessions)
     active_campaigns = sum(1 for s in all_sessions if s.get("phase") not in ("idle", "done"))
 
-    # Batch-load CRM overrides once
-    stage_overrides = crm_svc.all_stage_overrides()
+    # Batch-load CRM overrides once — only for this user's sessions
+    user_session_ids = [s["session_id"] for s in all_sessions]
+    stage_overrides = crm_svc.all_stage_overrides(session_ids=user_session_ids)
 
     total_prospects = 0
     pipeline: dict[str, int] = {}
@@ -680,22 +747,24 @@ async def get_stats() -> dict:
 
 
 @app.get("/api/analytics")
-async def get_analytics() -> dict:
+async def get_analytics(request: Request) -> dict:
     """Redirects to stats — analytics page removed."""
-    return await get_stats()
+    return await get_stats(request)
 
 
 @app.get("/api/crm/prospects")
-async def get_crm_prospects() -> dict:
-    """All prospects across all campaigns for the CRM view.
+async def get_crm_prospects(request: Request) -> dict:
+    """All prospects across the current user's campaigns for the CRM view.
     Includes manual stage overrides and notes."""
-    all_sessions = sessions_svc.list_sessions()
+    user_email = _require_user(request)
+    all_sessions = sessions_svc.list_sessions(user_email=user_email)
     prospects = []
     prospect_id = 0
 
-    # Batch-load all CRM overrides + notes
-    stage_overrides = crm_svc.all_stage_overrides()
-    all_notes = crm_svc.all_notes()
+    # Batch-load CRM overrides + notes — only for this user's sessions
+    user_session_ids = [s["session_id"] for s in all_sessions]
+    stage_overrides = crm_svc.all_stage_overrides(session_ids=user_session_ids)
+    all_notes = crm_svc.all_notes(session_ids=user_session_ids)
 
     for s in all_sessions:
         session_id = s["session_id"]
@@ -764,20 +833,27 @@ async def get_crm_prospects() -> dict:
 
 
 @app.post("/api/crm/notes")
-async def add_crm_note(body: dict) -> dict:
+async def add_crm_note(body: dict, request: Request) -> dict:
     """Add a note/comment to a prospect."""
+    user_email = _require_user(request)
     session_id = body.get("session_id", "")
     dm_name = body.get("dm_name", "")
     content = body.get("content", "").strip()
     if not session_id or not dm_name or not content:
         raise HTTPException(status_code=400, detail="session_id, dm_name, and content are required")
+    _own_session_or_404(session_id, user_email)
     note = crm_svc.add_note(session_id, dm_name, content)
     return {"note": note}
 
 
 @app.delete("/api/crm/notes/{note_id}")
-async def delete_crm_note(note_id: str) -> dict:
-    """Delete a note."""
+async def delete_crm_note(note_id: str, request: Request) -> dict:
+    """Delete a note — only the owner of the parent session can delete."""
+    user_email = _require_user(request)
+    sid = crm_svc.get_note_session(note_id)
+    if not sid:
+        raise HTTPException(status_code=404, detail="Note not found")
+    _own_session_or_404(sid, user_email)
     ok = crm_svc.delete_note(note_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Note not found")
@@ -785,8 +861,9 @@ async def delete_crm_note(note_id: str) -> dict:
 
 
 @app.post("/api/crm/stage")
-async def set_crm_stage(body: dict) -> dict:
+async def set_crm_stage(body: dict, request: Request) -> dict:
     """Manually override a prospect's pipeline stage."""
+    user_email = _require_user(request)
     session_id = body.get("session_id", "")
     dm_name = body.get("dm_name", "")
     stage = body.get("stage", "")
@@ -795,6 +872,7 @@ async def set_crm_stage(body: dict) -> dict:
     valid_stages = ["Sourced", "Researched", "Outreach Sent", "Replied", "Qualified", "Demo Booked", "Lost"]
     if stage not in valid_stages:
         raise HTTPException(status_code=400, detail=f"stage must be one of: {', '.join(valid_stages)}")
+    _own_session_or_404(session_id, user_email)
     result = crm_svc.set_stage(session_id, dm_name, stage)
     return {"stage": result}
 
@@ -803,10 +881,11 @@ async def set_crm_stage(body: dict) -> dict:
 
 
 @app.get("/api/governance")
-async def get_governance() -> dict:
-    """Combined governance data (company + ICPs) for the frontend."""
-    profile = company_svc.get_company_profile()
-    icps_list = company_svc.list_icps()
+async def get_governance(request: Request) -> dict:
+    """Combined governance data (company + ICPs) for the current user."""
+    user_email = _require_user(request)
+    profile = company_svc.get_company_profile(user_email=user_email)
+    icps_list = company_svc.list_icps(user_email=user_email)
 
     # Bridge company profile to simpler format for governance page
     company_data = {}
@@ -834,9 +913,9 @@ async def get_governance() -> dict:
 
 
 @app.post("/api/governance/company")
-async def save_governance_company(body: dict) -> dict:
+async def save_governance_company(body: dict, request: Request) -> dict:
     """Save company info from governance page."""
-    # Bridge to existing company profile format
+    user_email = _require_user(request)
     profile_data = {
         "company_name": body.get("name", ""),
         "website_url": body.get("domain", ""),
@@ -845,18 +924,19 @@ async def save_governance_company(body: dict) -> dict:
         "company_size": body.get("team_size", ""),
         "meeting_link": body.get("meeting_link", ""),
     }
-    company_svc.save_company_profile(profile_data)
+    company_svc.save_company_profile(profile_data, user_email=user_email)
     return {"saved": True}
 
 
 @app.post("/api/governance/icps")
-async def create_governance_icp(body: dict) -> dict:
+async def create_governance_icp(body: dict, request: Request) -> dict:
     """Create ICP from governance page."""
+    user_email = _require_user(request)
     icp_data = {
         "name": body.get("name", ""),
         "description": body.get("description", ""),
     }
-    result = company_svc.create_icp(icp_data)
+    result = company_svc.create_icp(icp_data, user_email=user_email)
     if result is None:
         raise HTTPException(status_code=400, detail="Maximum ICPs reached")
     return {"icp": {
@@ -868,11 +948,10 @@ async def create_governance_icp(body: dict) -> dict:
 
 
 @app.put("/api/governance/icps/{icp_id}")
-async def update_governance_icp(icp_id: str, body: dict) -> dict:
+async def update_governance_icp(icp_id: str, body: dict, request: Request) -> dict:
     """Update ICP from governance page."""
-    existing = company_svc.get_icp(icp_id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="ICP not found")
+    user_email = _require_user(request)
+    existing = _own_icp_or_404(icp_id, user_email)
     update_data = {**existing}
     for key in ("id", "created_at", "updated_at"):
         update_data.pop(key, None)
@@ -892,8 +971,10 @@ async def update_governance_icp(icp_id: str, body: dict) -> dict:
 
 
 @app.delete("/api/governance/icps/{icp_id}")
-async def delete_governance_icp(icp_id: str) -> dict:
+async def delete_governance_icp(icp_id: str, request: Request) -> dict:
     """Delete ICP from governance page."""
+    user_email = _require_user(request)
+    _own_icp_or_404(icp_id, user_email)
     ok = company_svc.delete_icp(icp_id)
     if not ok:
         raise HTTPException(status_code=404, detail="ICP not found")

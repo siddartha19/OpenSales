@@ -105,14 +105,26 @@ def bulk_notes(session_id: str) -> dict[str, list[dict]]:
     return out
 
 
-def all_notes() -> dict[str, dict[str, list[dict]]]:
+def all_notes(session_ids: Optional[list[str]] = None) -> dict[str, dict[str, list[dict]]]:
     """Return all notes keyed by session_id -> dm_name -> [notes].
-    Used by the CRM list endpoint to batch-load everything."""
+    If session_ids is provided, only notes for those sessions are returned.
+    Used by the CRM list endpoint to batch-load everything (scoped per-user)."""
     with _conn() as conn:
-        rows = conn.execute(
-            "SELECT id, session_id, dm_name, content, created_at "
-            "FROM crm_notes ORDER BY created_at DESC"
-        ).fetchall()
+        if session_ids is None:
+            rows = conn.execute(
+                "SELECT id, session_id, dm_name, content, created_at "
+                "FROM crm_notes ORDER BY created_at DESC"
+            ).fetchall()
+        elif not session_ids:
+            return {}
+        else:
+            placeholders = ",".join("?" * len(session_ids))
+            rows = conn.execute(
+                f"SELECT id, session_id, dm_name, content, created_at "
+                f"FROM crm_notes WHERE session_id IN ({placeholders}) "
+                f"ORDER BY created_at DESC",
+                session_ids,
+            ).fetchall()
     out: dict[str, dict[str, list[dict]]] = {}
     for r in rows:
         d = dict(r)
@@ -149,11 +161,31 @@ def get_stage(session_id: str, dm_name: str) -> Optional[str]:
     return row["stage"] if row else None
 
 
-def all_stage_overrides() -> dict[str, dict[str, str]]:
-    """Return all overrides keyed by session_id -> dm_name -> stage."""
+def all_stage_overrides(session_ids: Optional[list[str]] = None) -> dict[str, dict[str, str]]:
+    """Return all overrides keyed by session_id -> dm_name -> stage.
+    If session_ids is provided, only overrides for those sessions are returned."""
     with _conn() as conn:
-        rows = conn.execute("SELECT session_id, dm_name, stage FROM crm_stages").fetchall()
+        if session_ids is None:
+            rows = conn.execute("SELECT session_id, dm_name, stage FROM crm_stages").fetchall()
+        elif not session_ids:
+            return {}
+        else:
+            placeholders = ",".join("?" * len(session_ids))
+            rows = conn.execute(
+                f"SELECT session_id, dm_name, stage FROM crm_stages "
+                f"WHERE session_id IN ({placeholders})",
+                session_ids,
+            ).fetchall()
     out: dict[str, dict[str, str]] = {}
     for r in rows:
         out.setdefault(r["session_id"], {})[r["dm_name"]] = r["stage"]
     return out
+
+
+def get_note_session(note_id: str) -> Optional[str]:
+    """Return the session_id for a note id (used for ownership checks)."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT session_id FROM crm_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+    return row["session_id"] if row else None

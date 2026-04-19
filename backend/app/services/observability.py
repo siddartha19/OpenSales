@@ -207,22 +207,42 @@ def _group_by(rows: list[dict], key: str) -> dict:
     return out
 
 
-def list_recent_traces(limit: int = 20) -> list[dict]:
+def list_recent_traces(limit: int = 20, trace_ids: list[str] | None = None) -> list[dict]:
+    """Recent traces. If trace_ids is provided, restrict to that set
+    (used to scope the trace list to a specific user's runs)."""
     init_db()
     with _conn() as c:
-        cur = c.execute(
-            """SELECT trace_id,
-                      MIN(started_at) AS started_at,
-                      MAX(ended_at)   AS ended_at,
-                      COUNT(*)        AS steps,
-                      SUM(cost_usd)   AS cost
-                 FROM agent_runs
-                WHERE trace_id IS NOT NULL
-                GROUP BY trace_id
-                ORDER BY started_at DESC
-                LIMIT ?""",
-            (limit,),
-        )
+        if trace_ids is None:
+            cur = c.execute(
+                """SELECT trace_id,
+                          MIN(started_at) AS started_at,
+                          MAX(ended_at)   AS ended_at,
+                          COUNT(*)        AS steps,
+                          SUM(cost_usd)   AS cost
+                     FROM agent_runs
+                    WHERE trace_id IS NOT NULL
+                    GROUP BY trace_id
+                    ORDER BY started_at DESC
+                    LIMIT ?""",
+                (limit,),
+            )
+        elif not trace_ids:
+            return []
+        else:
+            placeholders = ",".join("?" * len(trace_ids))
+            cur = c.execute(
+                f"""SELECT trace_id,
+                           MIN(started_at) AS started_at,
+                           MAX(ended_at)   AS ended_at,
+                           COUNT(*)        AS steps,
+                           SUM(cost_usd)   AS cost
+                      FROM agent_runs
+                     WHERE trace_id IN ({placeholders})
+                     GROUP BY trace_id
+                     ORDER BY started_at DESC
+                     LIMIT ?""",
+                (*trace_ids, limit),
+            )
         return [
             {
                 "trace_id": tid,
