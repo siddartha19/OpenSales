@@ -198,16 +198,16 @@ Paste a reply into the objection box. AE drafts a response that addresses the co
 | Layer            | Tech                                        | Why                                                                                       |
 | ---------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Agent runtime    | [LangGraph](https://github.com/langchain-ai/langgraph) + `langgraph-supervisor` | Battle-tested supervisor pattern, persistent memory via `MemorySaver`.                    |
-| LLM              | [OpenRouter](https://openrouter.ai) → Gemini 2.0 Flash | $0.10/$0.40 per 1M tokens. Fast tool-calling. Switch model with one env var.              |
+| LLM              | [OpenRouter](https://openrouter.ai) → Gemini 2.0 Flash | $0.10/$0.40 per 1M tokens. Fast tool-calling. Switch model with one env var.   |
 | Company discovery| [Exa](https://exa.ai)                       | Neural search across the open web. Finds companies Crustdata can't.                       |
 | People search    | [Crustdata](https://crustdata.com)          | Purpose-built for B2B people search. Filters, autocomplete, enrich.                       |
 | LinkedIn data    | [Apify](https://apify.com) + SQLite cache   | Rich LinkedIn profiles + recent posts. Cached 24h. Falls back to Exa on timeout/failure.  |
-| Email            | [SendGrid](https://sendgrid.com)            | Reliable, free tier covers 100 emails/day. Live sends via your own sender domain.          |
+| Email            | [SendGrid](https://sendgrid.com)            | Reliable, free tier covers 100 emails/day. Live sends via your own sender domain.         |
 | Pipeline         | Google Sheets API                           | Mentor-visible artifact. Familiar to every salesperson alive.                             |
 | Observability    | SQLite + custom React tree view             | Trace tree, per-step token + cost, expandable prompts. ~30KB, no external service.        |
 | Backend          | FastAPI + Pydantic + uv                     | Async-native, fast cold start, modern Python tooling.                                     |
 | Frontend         | Next.js 14 (App Router) + Tailwind          | One framework for UI + API proxy. Server-side env handling for keys.                      |
-| Auth             | HMAC-signed httpOnly cookie + middleware    | 50 lines of code. No NextAuth, no Clerk. Hardcoded creds in env for hackathon scope.      |
+| Auth             | HMAC-signed httpOnly cookie + middleware    | 50 lines of code. No NextAuth, no Clerk.                                                  |
 | Hosting          | Local + ngrok                               | Run on your own machine. ngrok tunnel for public demo URL.                                |
 
 
