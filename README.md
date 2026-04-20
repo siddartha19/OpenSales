@@ -15,7 +15,7 @@ A multi-agent outbound sales system. Paste an ICP. A VP-of-Sales agent plans the
 
 ## Why OpenSales
 
-Outbound sales is one of the most expensive functions a startup runs. A single SDR in India costs ₹6-12 lakhs/year. Most early-stage founders do it themselves and lose 10-15 hours a week to prospecting and writing cold emails. The work is real, the work is repetitive, and the work is exactly what AI agents can now do well.
+Outbound sales is one of the most expensive functions a startup runs. A single SDR today costs $6k–$1 K lakhs/year. Most early-stage founders do it themselves and lose 10-15 hours a week to prospecting and writing cold emails. The work is real, the work is repetitive, and the work is exactly what AI agents can now do well.
 
 OpenSales replaces the SDR + AE pair with two specialist agents and a manager that reviews their output. It works on real public data (LinkedIn, web search, B2B people databases) and sends real emails through real transports. No simulated paths anywhere.
 
